@@ -26,3 +26,5 @@ Required secrets are configured in Hostinger, never committed:
 - `SERVE_WEB=true`
 
 Database migrations run as an explicit release step before application traffic depends on the new schema. They are never executed from browser code.
+
+Feature pull requests are squash-merged into `dev`. Promotion pull requests are merged from `dev` into `main` with a merge commit, preserving clean branch ancestry for the next release.

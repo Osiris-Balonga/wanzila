@@ -20,7 +20,8 @@ main
 - Feature, fix, test, and documentation branches target `dev`.
 - Create branches from the latest `dev`.
 - Keep one coherent GitHub Issue per branch and pull request.
-- Use squash merge after CI and review pass.
+- Squash feature, fix, test, and documentation pull requests into `dev`.
+- Merge `dev` promotion pull requests into `main` with a merge commit so the integration branch remains an ancestor of production.
 - Delete merged branches.
 
 GitHub Actions enforce the base/head relationship. Pull requests targeting `main` from any branch other than `dev` fail immediately.
