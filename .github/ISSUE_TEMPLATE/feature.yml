@@ -1,0 +1,38 @@
+name: Feature
+description: Plan an independently reviewable product increment.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Describe the observable user or operator outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: List what belongs in this issue and what explicitly does not.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Use testable Given, When, Then examples or an equivalent checklist.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Link blocking issues, contracts, mockups, or migrations.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: State the expected automated and manual evidence.
+    validations:
+      required: true
