@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  branch-policy:
+    name: Branch policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate pull request direction
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$BASE" == "main" && "$HEAD" != "dev" ]]; then
+            echo "Only dev may open a pull request into main."
+            exit 1
+          fi
+          if [[ "$BASE" == "dev" && ! "$HEAD" =~ ^(feature/(web|api|data)/.+|fix/.+|test/.+|docs/.+|chore/.+|dependabot/.+)$ ]]; then
+            echo "Branches targeting dev must use an approved short-lived branch prefix."
+            exit 1
+          fi
+
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level=high
+      - run: pnpm validate
+
+  database:
+    name: Database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: mysql://wanzila_test:wanzila-test-only@127.0.0.1:3306/wanzila_test_ci
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: wanzila-root-test-only
+          MARIADB_DATABASE: wanzila_test_ci
+          MARIADB_USER: wanzila_test
+          MARIADB_PASSWORD: wanzila-test-only
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @wanzila/api db:validate
+      - run: pnpm --filter @wanzila/api db:migrate
+
+  browser:
+    name: Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @wanzila/web build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

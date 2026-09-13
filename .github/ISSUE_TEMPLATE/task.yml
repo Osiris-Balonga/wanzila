@@ -1,0 +1,28 @@
+name: Engineering task
+description: Track infrastructure, quality, documentation, or operational work.
+title: "[Task]: "
+labels: ["engineering"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+    validations:
+      required: true
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: List the exact files, behaviors, or operational results expected.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and dependencies
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+    validations:
+      required: true

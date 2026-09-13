@@ -1,0 +1,138 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model AdminUser {
+  id           String   @id @default(uuid()) @db.Char(36)
+  email        String   @unique @db.VarChar(320)
+  passwordHash String   @db.VarChar(255)
+  displayName  String   @db.VarChar(120)
+  createdAt    DateTime @default(now()) @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @db.DateTime(3)
+}
+
+model Pharmacy {
+  id             String            @id @default(uuid()) @db.Char(36)
+  name           String            @db.VarChar(180)
+  phone          String?           @db.VarChar(32)
+  address        String            @db.VarChar(255)
+  district       String            @db.VarChar(120)
+  arrondissement String            @db.VarChar(120)
+  latitude       Decimal           @db.Decimal(10, 7)
+  longitude      Decimal           @db.Decimal(10, 7)
+  status         PublicationStatus @default(DRAFT)
+  createdAt      DateTime          @default(now()) @db.DateTime(3)
+  updatedAt      DateTime          @updatedAt @db.DateTime(3)
+  duties         DutyPeriod[]
+  contributions  Contribution[]
+  reports        Report[]
+
+  @@index([status, arrondissement, district])
+  @@index([latitude, longitude])
+}
+
+model ScheduleSource {
+  id          String       @id @default(uuid()) @db.Char(36)
+  name        String       @db.VarChar(180)
+  description String?      @db.Text
+  reliability Int          @default(50) @db.UnsignedTinyInt
+  updatedAt   DateTime     @updatedAt @db.DateTime(3)
+  duties      DutyPeriod[]
+}
+
+model DutyPeriod {
+  id         String         @id @default(uuid()) @db.Char(36)
+  pharmacyId String         @db.Char(36)
+  sourceId   String?        @db.Char(36)
+  startsAt   DateTime       @db.DateTime(3)
+  endsAt     DateTime       @db.DateTime(3)
+  status     ReviewStatus   @default(PENDING)
+  createdAt  DateTime       @default(now()) @db.DateTime(3)
+  updatedAt  DateTime       @updatedAt @db.DateTime(3)
+  pharmacy   Pharmacy       @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  source     ScheduleSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([startsAt, endsAt, status])
+  @@index([pharmacyId, startsAt, endsAt])
+}
+
+model Contribution {
+  id             String       @id @default(uuid()) @db.Char(36)
+  pharmacyId     String?      @db.Char(36)
+  pharmacyName   String       @db.VarChar(180)
+  phone          String?      @db.VarChar(32)
+  address        String       @db.VarChar(255)
+  district       String       @db.VarChar(120)
+  arrondissement String       @db.VarChar(120)
+  latitude       Decimal      @db.Decimal(10, 7)
+  longitude      Decimal      @db.Decimal(10, 7)
+  note           String?      @db.Text
+  status         ReviewStatus @default(PENDING)
+  createdAt      DateTime     @default(now()) @db.DateTime(3)
+  reviewedAt     DateTime?    @db.DateTime(3)
+  pharmacy       Pharmacy?    @relation(fields: [pharmacyId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model Report {
+  id          String       @id @default(uuid()) @db.Char(36)
+  pharmacyId  String       @db.Char(36)
+  category    String       @db.VarChar(80)
+  description String?      @db.Text
+  status      ReportStatus @default(OPEN)
+  createdAt   DateTime     @default(now()) @db.DateTime(3)
+  resolvedAt  DateTime?    @db.DateTime(3)
+  pharmacy    Pharmacy     @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model EmergencyContact {
+  id        String            @id @default(uuid()) @db.Char(36)
+  label     String            @db.VarChar(120)
+  phone     String            @db.VarChar(32)
+  position  Int               @default(0) @db.UnsignedInt
+  status    PublicationStatus @default(DRAFT)
+  updatedAt DateTime          @updatedAt @db.DateTime(3)
+
+  @@index([status, position])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid()) @db.Char(36)
+  name       String   @db.VarChar(80)
+  pharmacyId String?  @db.Char(36)
+  sessionId  String?  @db.Char(36)
+  properties Json?
+  occurredAt DateTime @default(now()) @db.DateTime(3)
+
+  @@index([name, occurredAt])
+  @@index([pharmacyId, occurredAt])
+}
