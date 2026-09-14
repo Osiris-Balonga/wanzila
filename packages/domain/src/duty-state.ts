@@ -119,3 +119,15 @@ export function isDutyActive(
 ): boolean {
   return resolveDutyState(duty, options).state === "ACTIVE";
 }
+
+/**
+ * Returns the first active duty in the caller-supplied deterministic order.
+ * Persistence layers own ordering; this helper keeps active-duty semantics in
+ * the domain instead of duplicating them in HTTP handlers.
+ */
+export function findActiveDuty<T extends DutyPeriodInput>(
+  duties: readonly T[],
+  options: ResolveDutyStateOptions,
+): T | undefined {
+  return duties.find((duty) => isDutyActive(duty, options));
+}
