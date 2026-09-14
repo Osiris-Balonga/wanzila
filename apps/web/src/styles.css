@@ -541,33 +541,25 @@ p {
     display: none;
   }
 
-  .admin-menu summary {
+  .admin-menu {
     align-items: center;
     border-radius: 0.5rem;
     color: var(--primary);
-    cursor: pointer;
     display: inline-flex;
     font-size: 0.875rem;
     font-weight: 700;
     gap: var(--space-2);
-    list-style: none;
     min-height: 2.75rem;
     padding: 0 var(--space-2);
   }
 
-  .admin-menu summary::-webkit-details-marker {
-    display: none;
+  .admin-menu svg {
+    height: 1.25rem;
+    width: 1.25rem;
   }
 
-  .admin-menu[open] .admin-nav {
-    background: var(--surface);
-    box-shadow: var(--shadow-float);
-    left: var(--space-3);
-    padding: var(--space-2);
-    position: absolute;
-    right: var(--space-3);
-    top: calc(100% + var(--space-2));
-    z-index: 20;
+  .admin-sheet-navigation {
+    padding: 0 var(--space-4) var(--space-4);
   }
 
   .admin-main {

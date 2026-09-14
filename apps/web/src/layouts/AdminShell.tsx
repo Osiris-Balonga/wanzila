@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { EmptyState } from "../components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 type AdminShellProps = { pathname: string };
 const administrationLinks: Array<{
@@ -26,9 +35,11 @@ const isCurrentRoute = (href: string, pathname: string) =>
 
 function Navigation({
   compact = false,
+  firstLinkRef,
   pathname,
 }: {
   compact?: boolean;
+  firstLinkRef?: RefObject<HTMLAnchorElement | null>;
   pathname: string;
 }) {
   return (
@@ -36,13 +47,14 @@ function Navigation({
       aria-label="Navigation administration"
       className={compact ? "admin-nav admin-nav--compact" : "admin-nav"}
     >
-      {administrationLinks.map((item) => (
+      {administrationLinks.map((item, index) => (
         <a
           aria-current={
             isCurrentRoute(item.href, pathname) ? "page" : undefined
           }
           href={item.href}
           key={item.href}
+          ref={index === 0 ? firstLinkRef : undefined}
         >
           <Icon name={item.icon} />
           <span>{item.label}</span>
@@ -54,6 +66,7 @@ function Navigation({
 
 export function AdminShell({ pathname }: AdminShellProps) {
   const [activeTabId, setActiveTabId] = useState("overview");
+  const mobileNavigationFirstLinkRef = useRef<HTMLAnchorElement>(null);
 
   return (
     <div className="admin-shell" data-shell="admin">
@@ -89,13 +102,40 @@ export function AdminShell({ pathname }: AdminShellProps) {
           <img alt="" height="36" src="/brand-app-icon.png" width="36" />
           <span>Pharma Garde</span>
         </a>
-        <details className="admin-menu">
-          <summary>
-            <Icon name="menu" />
-            <span>Menu</span>
-          </summary>
-          <Navigation compact pathname={pathname} />
-        </details>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              aria-label="Ouvrir le menu d’administration"
+              className="admin-menu"
+              variant="ghost"
+            >
+              <Icon name="menu" />
+              <span>Menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            className="admin-sheet-content"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              mobileNavigationFirstLinkRef.current?.focus();
+            }}
+            side="left"
+          >
+            <SheetHeader>
+              <SheetTitle>Navigation administration</SheetTitle>
+              <SheetDescription>
+                Accédez aux sections de gestion de Pharma Garde.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="admin-sheet-navigation">
+              <Navigation
+                compact
+                firstLinkRef={mobileNavigationFirstLinkRef}
+                pathname={pathname}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
         <div className="admin-header__tools">
           <Label className="sr-only" htmlFor="admin-search">
             Recherche
@@ -130,8 +170,18 @@ export function AdminShell({ pathname }: AdminShellProps) {
             aria-label="Sections de démonstration"
             className="admin-tabs"
           >
-            <TabsTrigger value="overview">Vue d’ensemble</TabsTrigger>
-            <TabsTrigger value="components">Composants</TabsTrigger>
+            <TabsTrigger
+              tabIndex={activeTabId === "overview" ? 0 : -1}
+              value="overview"
+            >
+              Vue d’ensemble
+            </TabsTrigger>
+            <TabsTrigger
+              tabIndex={activeTabId === "components" ? 0 : -1}
+              value="components"
+            >
+              Composants
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
             <Card className="admin-placeholder">

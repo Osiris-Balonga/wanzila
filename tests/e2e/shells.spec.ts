@@ -35,7 +35,9 @@ for (const viewport of viewports) {
     await expectNoHorizontalOverflow(page);
 
     if (viewport.width < 768) {
-      await page.locator("summary").click();
+      await page
+        .getByRole("button", { name: "Ouvrir le menu d’administration" })
+        .click();
     }
 
     await expect(
@@ -46,7 +48,7 @@ for (const viewport of viewports) {
 
 test("keyboard focus remains visible on shell navigation", async ({ page }) => {
   await page.goto("/");
-  await page.keyboard.press("Tab");
+  await page.locator("body").press("Tab");
   await expect(
     page.getByRole("link", { name: "Aller au contenu" }),
   ).toBeFocused();
@@ -56,16 +58,32 @@ test("keyboard focus remains visible on shell navigation", async ({ page }) => {
   ).toBeFocused();
 });
 
-test("the narrow administration navigation opens from the keyboard", async ({
+test("the narrow administration Sheet preserves keyboard focus lifecycle", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/admin");
-  await page.locator("summary").focus();
-  await page.locator("summary").press("Enter");
+  const trigger = page.getByRole("button", {
+    name: "Ouvrir le menu d’administration",
+  });
+  const sheet = page.getByRole("dialog", {
+    name: "Navigation administration",
+  });
+
+  await trigger.focus();
+  await trigger.press("Enter");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Fermer" })).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Navigation administration" }),
+    sheet.getByRole("link", { name: "Vue d’ensemble" }),
+  ).toBeFocused();
+  await expect(
+    sheet.getByRole("navigation", { name: "Navigation administration" }),
   ).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test("administration tabs support pointer and keyboard selection", async ({
@@ -79,15 +97,25 @@ test("administration tabs support pointer and keyboard selection", async ({
   const componentsTab = tablist.getByRole("tab", { name: "Composants" });
 
   await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await expect(overviewTab).toHaveAttribute("tabindex", "0");
   await expect(componentsTab).toHaveAttribute("aria-selected", "false");
+  await expect(componentsTab).toHaveAttribute("tabindex", "-1");
 
   await componentsTab.click();
   await expect(componentsTab).toHaveAttribute("aria-selected", "true");
+  await expect(componentsTab).toHaveAttribute("tabindex", "0");
+  await expect(overviewTab).toHaveAttribute("tabindex", "-1");
 
-  await componentsTab.press("ArrowLeft");
+  await componentsTab.press("Home");
   await expect(overviewTab).toBeFocused();
   await expect(overviewTab).toHaveAttribute("aria-selected", "true");
   await overviewTab.press("ArrowRight");
+  await expect(componentsTab).toBeFocused();
+  await expect(componentsTab).toHaveAttribute("aria-selected", "true");
+  await componentsTab.press("ArrowLeft");
+  await expect(overviewTab).toBeFocused();
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await overviewTab.press("End");
   await expect(componentsTab).toBeFocused();
   await expect(componentsTab).toHaveAttribute("aria-selected", "true");
 });

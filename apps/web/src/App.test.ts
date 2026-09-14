@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { isAdminPath } from "./App";
 import { Button } from "./components/ui/button";
+import { Dialog, DialogFooter } from "./components/ui/dialog";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { Switch } from "./components/ui/switch";
@@ -71,5 +72,28 @@ describe("accessible shadcn primitives", () => {
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('role="tab"');
     expect(markup).toContain('aria-selected="true"');
+  });
+
+  it("uses a French and overridable Dialog close label", () => {
+    const defaultMarkup = renderToStaticMarkup(
+      createElement(
+        Dialog,
+        { open: true },
+        createElement(DialogFooter, { showCloseButton: true }),
+      ),
+    );
+    const customMarkup = renderToStaticMarkup(
+      createElement(
+        Dialog,
+        { open: true },
+        createElement(DialogFooter, {
+          closeLabel: "Annuler",
+          showCloseButton: true,
+        }),
+      ),
+    );
+
+    expect(defaultMarkup).toContain(">Fermer<");
+    expect(customMarkup).toContain(">Annuler<");
   });
 });
