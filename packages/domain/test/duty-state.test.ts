@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AmbiguousDutyExceptionError,
   getSourceFreshness,
   isDutyActive,
   resolveDutyState,
@@ -75,6 +76,37 @@ describe("duty state", () => {
     ).toMatchObject({
       state: "UNAVAILABLE",
     });
+  });
+
+  it("rejects overlapping applicable exceptions independently of their input order", () => {
+    const exceptionWindow = {
+      startsAt: new Date("2026-09-14T11:00:00.000Z"),
+      endsAt: new Date("2026-09-14T13:00:00.000Z"),
+    };
+    const cancelled = { kind: "CANCELLED" as const, ...exceptionWindow };
+    const unavailable = { kind: "UNAVAILABLE" as const, ...exceptionWindow };
+
+    const errorFor = (
+      exceptions: NonNullable<DutyPeriodInput["exceptions"]>,
+    ) => {
+      try {
+        resolve({ exceptions });
+      } catch (error) {
+        if (error instanceof AmbiguousDutyExceptionError) {
+          return `${error.name}: ${error.message}`;
+        }
+        throw error;
+      }
+
+      throw new Error("Expected overlapping exceptions to be rejected.");
+    };
+
+    expect(errorFor([cancelled, unavailable])).toBe(
+      "AmbiguousDutyExceptionError: Multiple duty exceptions apply at the same instant.",
+    );
+    expect(errorFor([unavailable, cancelled])).toBe(
+      errorFor([cancelled, unavailable]),
+    );
   });
 
   it("reports source freshness without changing the duty availability state", () => {

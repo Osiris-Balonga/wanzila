@@ -30,6 +30,13 @@ export interface ResolveDutyStateOptions {
   sourceFreshnessMaxAgeMs: number;
 }
 
+export class AmbiguousDutyExceptionError extends Error {
+  constructor() {
+    super("Multiple duty exceptions apply at the same instant.");
+    this.name = "AmbiguousDutyExceptionError";
+  }
+}
+
 function assertValidInterval(
   startsAt: Date,
   endsAt: Date,
@@ -89,11 +96,18 @@ export function resolveDutyState(
     return { state: "UNCERTAIN", sourceFreshness };
   }
 
-  for (const exception of duty.exceptions ?? []) {
+  const applicableExceptions = (duty.exceptions ?? []).filter((exception) => {
     assertValidInterval(exception.startsAt, exception.endsAt, "Duty exception");
-    if (isInInterval(exception.startsAt, exception.endsAt, options.at)) {
-      return { state: exception.kind, sourceFreshness };
-    }
+    return isInInterval(exception.startsAt, exception.endsAt, options.at);
+  });
+
+  if (applicableExceptions.length > 1) {
+    throw new AmbiguousDutyExceptionError();
+  }
+
+  const [applicableException] = applicableExceptions;
+  if (applicableException) {
+    return { state: applicableException.kind, sourceFreshness };
   }
 
   return { state: "ACTIVE", sourceFreshness };
