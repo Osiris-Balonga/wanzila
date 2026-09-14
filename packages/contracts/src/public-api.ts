@@ -5,7 +5,13 @@ const nonEmptyTextSchema = z.string().trim().min(1);
 
 export const apiErrorSchema = z.object({
   error: z.object({
-    code: z.enum(["BAD_REQUEST", "NOT_FOUND", "INTERNAL_ERROR"]),
+    code: z.enum([
+      "BAD_REQUEST",
+      "NOT_FOUND",
+      "RATE_LIMITED",
+      "CLIENT_ERROR",
+      "INTERNAL_ERROR",
+    ]),
     message: z.string(),
   }),
 });

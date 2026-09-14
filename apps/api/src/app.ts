@@ -11,9 +11,24 @@ import {
 } from "./infrastructure/prisma.js";
 import { registerEmergencyContactRoutes } from "./modules/public-api/emergency-contact-routes.js";
 import { registerPublicPharmacyRoutes } from "./modules/public-api/routes.js";
-import { internalError, sendNotFound } from "./modules/shared/http-errors.js";
+import {
+  internalError,
+  sendClientError,
+  sendNotFound,
+} from "./modules/shared/http-errors.js";
 
 const DEFAULT_SOURCE_FRESHNESS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+function isKnownClientError(error: unknown): error is { statusCode: number } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    typeof error.statusCode === "number" &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
+  );
+}
 
 export interface AppOptions {
   webOrigin: string;
@@ -23,6 +38,7 @@ export interface AppOptions {
   prisma?: ApiPrismaClient;
   now?: () => Date;
   sourceFreshnessMaxAgeMs?: number;
+  rateLimitMax?: number;
 }
 
 export async function createApp(options: AppOptions) {
@@ -33,10 +49,11 @@ export async function createApp(options: AppOptions) {
   const now = options.now ?? (() => new Date());
   const sourceFreshnessMaxAgeMs =
     options.sourceFreshnessMaxAgeMs ?? DEFAULT_SOURCE_FRESHNESS_MAX_AGE_MS;
+  const rateLimitMax = options.rateLimitMax ?? 120;
 
   await app.register(helmet);
   await app.register(cookie);
-  await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
+  await app.register(rateLimit, { max: rateLimitMax, timeWindow: "1 minute" });
   await app.register(cors, {
     origin: options.webOrigin,
     credentials: true,
@@ -52,19 +69,22 @@ export async function createApp(options: AppOptions) {
       await prisma.$disconnect();
     });
     await app.register(
-      async (publicApi) => {
-        await registerPublicPharmacyRoutes(publicApi, {
+      (publicApi) => {
+        registerPublicPharmacyRoutes(publicApi, {
           prisma,
           now,
           sourceFreshnessMaxAgeMs,
         });
-        await registerEmergencyContactRoutes(publicApi, prisma);
+        registerEmergencyContactRoutes(publicApi, prisma);
       },
       { prefix: "/api/v1" },
     );
   }
 
   app.setErrorHandler((error, request, reply) => {
+    if (isKnownClientError(error)) {
+      return sendClientError(reply, error.statusCode);
+    }
     request.log.error(error);
     return reply.code(500).send(internalError());
   });

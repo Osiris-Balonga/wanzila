@@ -2,10 +2,10 @@ import type { EmergencyContactsResponse } from "@wanzila/contracts";
 import type { FastifyInstance } from "fastify";
 import type { ApiPrismaClient } from "../../infrastructure/prisma.js";
 
-export async function registerEmergencyContactRoutes(
+export function registerEmergencyContactRoutes(
   app: FastifyInstance,
   prisma: ApiPrismaClient,
-): Promise<void> {
+): void {
   app.get(
     "/emergency-contacts",
     async (): Promise<EmergencyContactsResponse> => {

@@ -55,7 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: mysql://wanzila_test:wanzila-test-only@127.0.0.1:3306/wanzila_test_ci
+      WZ_TEST_DATABASE_URL: mysql://wanzila_test:wanzila-test-only@127.0.0.1:3306/wanzila_test_ci
+      WZ_RUN_MARIADB_TESTS: "true"
     services:
       mariadb:
         image: mariadb:11.8
@@ -78,8 +79,9 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @wanzila/api db:validate
-      - run: pnpm --filter @wanzila/api db:migrate
+      - run: pnpm db:generate
+      - run: DATABASE_URL="$WZ_TEST_DATABASE_URL" pnpm --filter @wanzila/api db:validate
+      - run: pnpm --filter @wanzila/api test:integration
 
   browser:
     name: Browser

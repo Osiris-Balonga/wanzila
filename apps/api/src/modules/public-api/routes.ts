@@ -143,10 +143,10 @@ function activeDutyWhere(at: Date): Prisma.DutyPeriodListRelationFilter {
   };
 }
 
-export async function registerPublicPharmacyRoutes(
+export function registerPublicPharmacyRoutes(
   app: FastifyInstance,
   options: PublicApiRouteOptions,
-): Promise<void> {
+): void {
   app.get(
     "/pharmacies",
     async (request, reply): Promise<PharmacyListResponse | void> => {

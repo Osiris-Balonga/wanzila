@@ -1,17 +1,24 @@
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import {
+  apiErrorSchema,
+  emergencyContactsResponseSchema,
+  pharmacyDetailResponseSchema,
+  pharmacyListResponseSchema,
+} from "@wanzila/contracts";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import {
   createPrismaClient,
   type ApiPrismaClient,
 } from "../src/infrastructure/prisma.js";
+import { getDisposableTestDatabaseUrl } from "./support/test-database.js";
 
 const execFileAsync = promisify(execFile);
-const testDatabaseUrl = process.env.WZ_TEST_DATABASE_URL;
-const runMariaDbTests =
-  process.env.WZ_RUN_MARIADB_TESTS === "true" && Boolean(testDatabaseUrl);
+const testDatabaseUrl = getDisposableTestDatabaseUrl(process.env);
+const disposableTestDatabaseUrl = testDatabaseUrl ?? "";
+const runMariaDbTests = Boolean(testDatabaseUrl);
 const NOW = new Date("2026-09-14T12:00:00.000Z");
 const workspaceRoot = resolve(import.meta.dirname, "../../..");
 
@@ -299,13 +306,13 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
         : ["-c", command],
       {
         cwd: workspaceRoot,
-        env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+        env: { ...process.env, DATABASE_URL: disposableTestDatabaseUrl },
       },
     );
   }, 60_000);
 
   beforeEach(async () => {
-    prisma = createPrismaClient(testDatabaseUrl!);
+    prisma = createPrismaClient(disposableTestDatabaseUrl);
     await clearFixtures(prisma);
     await createFixtures(prisma);
     app = await createApp({
@@ -325,25 +332,31 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       method: "GET",
       url: "/api/v1/pharmacies?q=Centrale",
     });
-    expect(
-      search.json().data.map((pharmacy: { name: string }) => pharmacy.name),
-    ).toEqual(["Pharmacie Centrale"]);
+    const searchResponse = pharmacyListResponseSchema.parse(search.json());
+    expect(searchResponse.data.map((pharmacy) => pharmacy.name)).toEqual([
+      "Pharmacie Centrale",
+    ]);
 
     const district = await app.inject({
       method: "GET",
       url: "/api/v1/pharmacies?district=Plateau",
     });
-    expect(
-      district.json().data.map((pharmacy: { name: string }) => pharmacy.name),
-    ).toEqual(["Pharmacie Alpha", "Pharmacie Centrale", "Pharmacie Nord"]);
+    const districtResponse = pharmacyListResponseSchema.parse(district.json());
+    expect(districtResponse.data.map((pharmacy) => pharmacy.name)).toEqual([
+      "Pharmacie Alpha",
+      "Pharmacie Centrale",
+      "Pharmacie Nord",
+    ]);
 
     const combined = await app.inject({
       method: "GET",
       url: "/api/v1/pharmacies?q=Pharmacie&district=Plateau&arrondissement=Poto-Poto",
     });
-    expect(
-      combined.json().data.map((pharmacy: { name: string }) => pharmacy.name),
-    ).toEqual(["Pharmacie Alpha", "Pharmacie Centrale"]);
+    const combinedResponse = pharmacyListResponseSchema.parse(combined.json());
+    expect(combinedResponse.data.map((pharmacy) => pharmacy.name)).toEqual([
+      "Pharmacie Alpha",
+      "Pharmacie Centrale",
+    ]);
   });
 
   it("paginates in stable name and ID order", async () => {
@@ -351,7 +364,7 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       method: "GET",
       url: "/api/v1/pharmacies?page=1&pageSize=2",
     });
-    expect(first.json()).toMatchObject({
+    expect(pharmacyListResponseSchema.parse(first.json())).toMatchObject({
       pagination: { page: 1, pageSize: 2, total: 3, totalPages: 2 },
       data: [{ name: "Pharmacie Alpha" }, { name: "Pharmacie Centrale" }],
     });
@@ -360,7 +373,9 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       method: "GET",
       url: "/api/v1/pharmacies?page=2&pageSize=2",
     });
-    expect(second.json()).toMatchObject({ data: [{ name: "Pharmacie Nord" }] });
+    expect(pharmacyListResponseSchema.parse(second.json())).toMatchObject({
+      data: [{ name: "Pharmacie Nord" }],
+    });
   });
 
   it("excludes unpublished, non-active, unapproved, temporal, and exception-overridden duties", async () => {
@@ -369,9 +384,12 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: "/api/v1/pharmacies",
     });
     expect(response.statusCode).toBe(200);
-    expect(
-      response.json().data.map((pharmacy: { id: string }) => pharmacy.id),
-    ).toEqual([ids.alpha, ids.centrale, ids.nord]);
+    const pharmacyResponse = pharmacyListResponseSchema.parse(response.json());
+    expect(pharmacyResponse.data.map((pharmacy) => pharmacy.id)).toEqual([
+      ids.alpha,
+      ids.centrale,
+      ids.nord,
+    ]);
   });
 
   it("exposes source freshness without inventing absent optional values", async () => {
@@ -379,19 +397,16 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       method: "GET",
       url: "/api/v1/pharmacies?pageSize=50",
     });
-    const pharmacies = response.json().data as Array<{
-      id: string;
-      phone?: string;
-      currentDuty: {
-        sourceFreshness: string;
-        source?: { name: string; observedAt: string };
-      };
-    }>;
-    const alpha = pharmacies.find((pharmacy) => pharmacy.id === ids.alpha)!;
+    const pharmacies = pharmacyListResponseSchema.parse(response.json()).data;
+    const alpha = pharmacies.find((pharmacy) => pharmacy.id === ids.alpha);
     const centrale = pharmacies.find(
       (pharmacy) => pharmacy.id === ids.centrale,
-    )!;
-    const nord = pharmacies.find((pharmacy) => pharmacy.id === ids.nord)!;
+    );
+    const nord = pharmacies.find((pharmacy) => pharmacy.id === ids.nord);
+
+    if (!alpha || !centrale || !nord) {
+      throw new Error("Expected all active pharmacy fixtures in the response.");
+    }
 
     expect(alpha.currentDuty).toMatchObject({
       sourceFreshness: "FRESH",
@@ -412,7 +427,7 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: `/api/v1/pharmacies/${ids.alpha}`,
     });
     expect(found.statusCode).toBe(200);
-    expect(found.json()).toMatchObject({
+    expect(pharmacyDetailResponseSchema.parse(found.json())).toMatchObject({
       data: {
         id: ids.alpha,
         address: {
@@ -430,7 +445,9 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: `/api/v1/pharmacies/${ids.inactive}`,
     });
     expect(inactive.statusCode).toBe(200);
-    expect(inactive.json().data.currentDuty).toBeUndefined();
+    expect(
+      pharmacyDetailResponseSchema.parse(inactive.json()).data.currentDuty,
+    ).toBeUndefined();
   });
 
   it("normalizes invalid requests and distinguishes an absent valid ID", async () => {
@@ -439,7 +456,7 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: "/api/v1/pharmacies?pageSize=51",
     });
     expect(invalidQuery.statusCode).toBe(400);
-    expect(invalidQuery.json()).toEqual({
+    expect(apiErrorSchema.parse(invalidQuery.json())).toEqual({
       error: { code: "BAD_REQUEST", message: "Invalid request parameters" },
     });
 
@@ -448,19 +465,25 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: "/api/v1/pharmacies?unexpected=value",
     });
     expect(unknownQuery.statusCode).toBe(400);
+    expect(apiErrorSchema.parse(unknownQuery.json()).error.code).toBe(
+      "BAD_REQUEST",
+    );
 
     const invalidId = await app.inject({
       method: "GET",
       url: "/api/v1/pharmacies/not-an-id",
     });
     expect(invalidId.statusCode).toBe(400);
+    expect(apiErrorSchema.parse(invalidId.json()).error.code).toBe(
+      "BAD_REQUEST",
+    );
 
     const missing = await app.inject({
       method: "GET",
       url: "/api/v1/pharmacies/00000000-0000-4000-8000-000000009999",
     });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toEqual({
+    expect(apiErrorSchema.parse(missing.json())).toEqual({
       error: { code: "NOT_FOUND", message: "Resource not found" },
     });
 
@@ -469,7 +492,7 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: "/api/v1/unknown",
     });
     expect(missingRoute.statusCode).toBe(404);
-    expect(missingRoute.json()).toEqual({
+    expect(apiErrorSchema.parse(missingRoute.json())).toEqual({
       error: { code: "NOT_FOUND", message: "Resource not found" },
     });
   });
@@ -480,7 +503,7 @@ describe.runIf(runMariaDbTests)("public pharmacy API (MariaDB)", () => {
       url: "/api/v1/emergency-contacts",
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(emergencyContactsResponseSchema.parse(response.json())).toEqual({
       data: [
         { id: ids.emergencyFirst, label: "SAMU", phone: "112", position: 1 },
         {
