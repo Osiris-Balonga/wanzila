@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const viewports = [
   { name: "320", width: 320, height: 800 },
@@ -7,15 +7,20 @@ const viewports = [
   { name: "1440", width: 1440, height: 1000 },
 ];
 
+const expectNoHorizontalOverflow = async (page: Page) => {
+  const documentWidth = await page.locator("html").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(documentWidth.scrollWidth).toBe(documentWidth.clientWidth);
+};
+
 for (const viewport of viewports) {
   test(`public shell is usable at ${viewport.name}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(page.getByRole("main")).toBeVisible();
-    await expect(page.locator("body")).toHaveJSProperty(
-      "scrollWidth",
-      viewport.width,
-    );
+    await expectNoHorizontalOverflow(page);
     await expect(
       page.getByRole("navigation", { name: "Navigation publique" }),
     ).toBeVisible();
@@ -27,10 +32,7 @@ for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.goto("/admin");
     await expect(page.getByRole("main")).toBeVisible();
-    await expect(page.locator("body")).toHaveJSProperty(
-      "scrollWidth",
-      viewport.width,
-    );
+    await expectNoHorizontalOverflow(page);
 
     if (viewport.width < 768) {
       await page.locator("summary").click();
