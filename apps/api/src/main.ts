@@ -6,6 +6,7 @@ async function bootstrap() {
   const environment = readEnvironment(process.env);
   const app = await createApp({
     webOrigin: environment.webOrigin,
+    databaseUrl: environment.databaseUrl,
     logger: environment.nodeEnvironment !== "test",
     ...(environment.serveWeb
       ? { webRoot: path.resolve(process.cwd(), "apps/web/dist") }
