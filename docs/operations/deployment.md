@@ -15,6 +15,8 @@ feature branch -> pull request -> dev -> release pull request -> main -> Render 
 
 Only `dev` may target `main`. CI must pass before merge. Render then builds the repository and starts the Node.js API, which serves the compiled web application. Auto-deploy is enabled only for `main`; feature branches and `dev` do not deploy production.
 
+The Render GitHub App is installed with repository access limited to `Osiris-Balonga/wanzila`.
+
 Production settings:
 
 - package manager: pnpm
