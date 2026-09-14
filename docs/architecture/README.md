@@ -11,7 +11,7 @@ Public and administration web UI
                 |
               Prisma
                 |
-       Hostinger MySQL database
+        Managed MySQL database
 ```
 
 The public interface and administration interface are routes within the same web application. They share visual foundations and API contracts but keep separate navigation shells.
