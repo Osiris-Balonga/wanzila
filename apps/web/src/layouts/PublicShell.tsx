@@ -1,11 +1,8 @@
 import { Icon, type IconName } from "../components/Icon";
-import {
-  Badge,
-  Card,
-  EmptyState,
-  FeedbackState,
-  Sheet,
-} from "../components/primitives";
+import { EmptyState } from "../components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 type PublicShellProps = { pathname: string };
 const navigation: Array<{ href: string; icon: IconName; label: string }> = [
@@ -27,27 +24,41 @@ export function PublicShell({ pathname }: PublicShellProps) {
           <img alt="" height="40" src="/brand-app-icon.png" width="40" />
           <span>Pharma Garde</span>
         </a>
-        <Badge tone="accent">Public</Badge>
+        <Badge
+          className="wanzila-badge wanzila-badge--accent"
+          variant="secondary"
+        >
+          Public
+        </Badge>
       </header>
       <main className="public-main" id="public-content">
         <Card className="public-intro">
-          <p className="overline">Pharma Garde</p>
-          <h1>Une information de santé, accessible à tous.</h1>
-          <p>
-            Cette surface établit la navigation et les composants partagés de
-            l’interface publique.
-          </p>
+          <CardContent>
+            <p className="overline">Pharma Garde</p>
+            <h1>Une information de santé, accessible à tous.</h1>
+            <p>
+              Cette surface établit la navigation et les composants partagés de
+              l’interface publique.
+            </p>
+          </CardContent>
         </Card>
-        <Sheet title="Surface publique">
+        <section
+          aria-labelledby="public-surface-title"
+          className="public-status-panel"
+        >
+          <span aria-hidden="true" className="public-status-panel__handle" />
+          <h2 id="public-surface-title">Surface publique</h2>
           <EmptyState icon="home" title="Écran en préparation">
             Les fonctionnalités de consultation seront ajoutées dans leurs
             issues dédiées.
           </EmptyState>
-          <FeedbackState>
-            Les éléments visibles ici sont des primitives de présentation ;
-            aucune donnée n’est chargée.
-          </FeedbackState>
-        </Sheet>
+          <Alert className="public-feedback">
+            <AlertDescription>
+              Les éléments visibles ici sont des primitives de présentation ;
+              aucune donnée n’est chargée.
+            </AlertDescription>
+          </Alert>
+        </section>
       </main>
       <nav aria-label="Navigation publique" className="public-navigation">
         {navigation.map((item) => (

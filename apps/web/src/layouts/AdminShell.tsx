@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
-import { Badge, Card, EmptyState, Field, Tabs } from "../components/primitives";
+import { EmptyState } from "../components/EmptyState";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type AdminShellProps = { pathname: string };
 const administrationLinks: Array<{
@@ -64,7 +69,12 @@ export function AdminShell({ pathname }: AdminShellProps) {
           <img alt="" height="40" src="/brand-app-icon.png" width="40" />
           <span>Pharma Garde</span>
         </a>
-        <Badge tone="accent">Admin</Badge>
+        <Badge
+          className="wanzila-badge wanzila-badge--accent"
+          variant="secondary"
+        >
+          Admin
+        </Badge>
         <Navigation pathname={pathname} />
         <p className="admin-sidebar__note">
           Fondation de l’espace d’administration.
@@ -87,10 +97,13 @@ export function AdminShell({ pathname }: AdminShellProps) {
           <Navigation compact pathname={pathname} />
         </details>
         <div className="admin-header__tools">
-          <Field
+          <Label className="sr-only" htmlFor="admin-search">
+            Recherche
+          </Label>
+          <Input
             aria-label="Recherche indisponible"
             disabled
-            label="Recherche"
+            id="admin-search"
             placeholder="Recherche indisponible"
           />
           <span aria-label="Notifications" className="notification-indicator">
@@ -108,22 +121,42 @@ export function AdminShell({ pathname }: AdminShellProps) {
               futures surfaces.
             </p>
           </div>
-          <Badge tone="neutral">Sans données</Badge>
+          <Badge className="wanzila-badge" variant="secondary">
+            Sans données
+          </Badge>
         </div>
-        <Tabs
-          activeId={activeTabId}
-          items={[
-            { id: "overview", label: "Vue d’ensemble" },
-            { id: "components", label: "Composants" },
-          ]}
-          label="Sections de démonstration"
-          onSelectionChange={setActiveTabId}
-        />
-        <Card className="admin-placeholder">
-          <EmptyState icon="dashboard" title="Surface prête à assembler">
-            Les tableaux, flux et métriques relèvent des issues métier à venir.
-          </EmptyState>
-        </Card>
+        <Tabs onValueChange={setActiveTabId} value={activeTabId}>
+          <TabsList
+            aria-label="Sections de démonstration"
+            className="admin-tabs"
+          >
+            <TabsTrigger value="overview">Vue d’ensemble</TabsTrigger>
+            <TabsTrigger value="components">Composants</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview">
+            <Card className="admin-placeholder">
+              <CardContent>
+                <EmptyState icon="dashboard" title="Surface prête à assembler">
+                  Les tableaux, flux et métriques relèvent des issues métier à
+                  venir.
+                </EmptyState>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="components">
+            <Card className="admin-placeholder">
+              <CardContent>
+                <EmptyState
+                  icon="settings"
+                  title="Primitives prêtes à employer"
+                >
+                  Les composants partagés sont accessibles aux futures surfaces
+                  sans ajouter de logique métier.
+                </EmptyState>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
