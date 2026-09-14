@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { healthResponseSchema } from "@wanzila/contracts";
 import { createApp } from "../src/app.js";
 
 describe("health endpoint", () => {
@@ -15,6 +16,9 @@ describe("health endpoint", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/health" });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok", service: "wanzila-api" });
+    expect(healthResponseSchema.parse(response.json())).toEqual({
+      status: "ok",
+      service: "wanzila-api",
+    });
   });
 });
