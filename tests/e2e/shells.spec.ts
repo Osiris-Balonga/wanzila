@@ -67,3 +67,37 @@ test("the narrow administration navigation opens from the keyboard", async ({
     page.getByRole("navigation", { name: "Navigation administration" }),
   ).toBeVisible();
 });
+
+test("administration tabs support pointer and keyboard selection", async ({
+  page,
+}) => {
+  await page.goto("/admin");
+  const tablist = page.getByRole("tablist", {
+    name: "Sections de démonstration",
+  });
+  const overviewTab = tablist.getByRole("tab", { name: "Vue d’ensemble" });
+  const componentsTab = tablist.getByRole("tab", { name: "Composants" });
+
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await expect(overviewTab).toHaveAttribute("tabindex", "0");
+  await expect(componentsTab).toHaveAttribute("aria-selected", "false");
+  await expect(componentsTab).toHaveAttribute("tabindex", "-1");
+
+  await componentsTab.click();
+  await expect(componentsTab).toHaveAttribute("aria-selected", "true");
+  await expect(componentsTab).toHaveAttribute("tabindex", "0");
+  await expect(overviewTab).toHaveAttribute("tabindex", "-1");
+
+  await componentsTab.press("Home");
+  await expect(overviewTab).toBeFocused();
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await overviewTab.press("ArrowRight");
+  await expect(componentsTab).toBeFocused();
+  await expect(componentsTab).toHaveAttribute("aria-selected", "true");
+  await componentsTab.press("ArrowLeft");
+  await expect(overviewTab).toBeFocused();
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await overviewTab.press("End");
+  await expect(componentsTab).toBeFocused();
+  await expect(componentsTab).toHaveAttribute("aria-selected", "true");
+});

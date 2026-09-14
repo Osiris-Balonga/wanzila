@@ -1,7 +1,9 @@
 import {
   useId,
+  useRef,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { Icon, type IconName } from "./Icon";
@@ -115,24 +117,84 @@ export function Badge({
 }) {
   return <span className={`badge badge--${tone}`}>{children}</span>;
 }
-export type Tab = { id: string; label: string };
+type TabWithoutPanel = {
+  id: string;
+  label: string;
+  panelId?: never;
+  tabId?: never;
+};
+type TabWithPanel = {
+  id: string;
+  label: string;
+  panelId: string;
+  tabId: string;
+};
+export type Tab = TabWithoutPanel | TabWithPanel;
 export function Tabs({
   activeId,
   items,
   label,
+  onSelectionChange,
 }: {
   activeId: string;
   items: Tab[];
   label: string;
+  onSelectionChange: (id: string) => void;
 }) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const activeIndex = Math.max(
+    0,
+    items.findIndex((item) => item.id === activeId),
+  );
+
+  const selectTab = (index: number) => {
+    const item = items[index];
+    if (!item) return;
+    onSelectionChange(item.id);
+    tabRefs.current[index]?.focus();
+  };
+
+  const handleKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    let nextIndex: number | undefined;
+    switch (event.key) {
+      case "ArrowLeft":
+        nextIndex = (index - 1 + items.length) % items.length;
+        break;
+      case "ArrowRight":
+        nextIndex = (index + 1) % items.length;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = items.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    selectTab(nextIndex);
+  };
+
   return (
     <div aria-label={label} className="tabs" role="tablist">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <button
-          aria-selected={item.id === activeId}
+          aria-controls={item.panelId}
+          aria-selected={index === activeIndex}
           className="tabs__tab"
+          id={item.tabId}
           key={item.id}
+          onClick={() => onSelectionChange(item.id)}
+          onKeyDown={(event) => handleKeyDown(event, index)}
+          ref={(element) => {
+            tabRefs.current[index] = element;
+          }}
           role="tab"
+          tabIndex={index === activeIndex ? 0 : -1}
           type="button"
         >
           {item.label}

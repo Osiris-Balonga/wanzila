@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { isAdminPath } from "./App";
-import { Button, Field, Switch } from "./components/primitives";
+import { Button, Field, Switch, Tabs } from "./components/primitives";
 
 describe("route shell selection", () => {
   it("reserves the administration shell for administration routes", () => {
@@ -35,5 +35,35 @@ describe("accessible primitives", () => {
     );
     expect(markup).toContain('role="switch"');
     expect(markup).toContain('aria-checked="true"');
+  });
+
+  it("links tabs only when a real panel is declared", () => {
+    const linkedMarkup = renderToStaticMarkup(
+      createElement(Tabs, {
+        activeId: "overview",
+        items: [
+          {
+            id: "overview",
+            label: "Vue d’ensemble",
+            panelId: "overview-panel",
+            tabId: "overview-tab",
+          },
+        ],
+        label: "Sections",
+        onSelectionChange: () => undefined,
+      }),
+    );
+    const unlinkedMarkup = renderToStaticMarkup(
+      createElement(Tabs, {
+        activeId: "overview",
+        items: [{ id: "overview", label: "Vue d’ensemble" }],
+        label: "Sections",
+        onSelectionChange: () => undefined,
+      }),
+    );
+
+    expect(linkedMarkup).toContain('id="overview-tab"');
+    expect(linkedMarkup).toContain('aria-controls="overview-panel"');
+    expect(unlinkedMarkup).not.toContain("aria-controls");
   });
 });

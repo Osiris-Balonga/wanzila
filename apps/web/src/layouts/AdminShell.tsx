@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { Badge, Card, EmptyState, Field, Tabs } from "../components/primitives";
 
@@ -47,6 +48,8 @@ function Navigation({
 }
 
 export function AdminShell({ pathname }: AdminShellProps) {
+  const [activeTabId, setActiveTabId] = useState("overview");
+
   return (
     <div className="admin-shell" data-shell="admin">
       <a className="skip-link" href="#admin-content">
@@ -108,12 +111,13 @@ export function AdminShell({ pathname }: AdminShellProps) {
           <Badge tone="neutral">Sans données</Badge>
         </div>
         <Tabs
-          activeId="overview"
+          activeId={activeTabId}
           items={[
             { id: "overview", label: "Vue d’ensemble" },
             { id: "components", label: "Composants" },
           ]}
           label="Sections de démonstration"
+          onSelectionChange={setActiveTabId}
         />
         <Card className="admin-placeholder">
           <EmptyState icon="dashboard" title="Surface prête à assembler">
