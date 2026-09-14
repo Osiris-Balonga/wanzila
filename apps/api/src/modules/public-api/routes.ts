@@ -133,6 +133,12 @@ function activeDutyWhere(at: Date): Prisma.DutyPeriodListRelationFilter {
       startsAt: { lte: at },
       endsAt: { gt: at },
       status: "APPROVED",
+      exceptions: {
+        none: {
+          startsAt: { lte: at },
+          endsAt: { gt: at },
+        },
+      },
     },
   };
 }
@@ -164,11 +170,17 @@ export async function registerPublicPharmacyRoutes(
         where.arrondissement = query.data.arrondissement;
       }
 
-      const pharmacies = await options.prisma.pharmacy.findMany({
-        where,
-        orderBy: [{ name: "asc" }, { id: "asc" }],
-        select: pharmacySelect,
-      });
+      const start = (query.data.page - 1) * query.data.pageSize;
+      const [pharmacies, total] = await Promise.all([
+        options.prisma.pharmacy.findMany({
+          where,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          skip: start,
+          take: query.data.pageSize,
+          select: pharmacySelect,
+        }),
+        options.prisma.pharmacy.count({ where }),
+      ]);
       const activePharmacies: ActivePublicPharmacy[] = pharmacies.flatMap(
         (pharmacy) => {
           const serialized = serializePharmacy(
@@ -181,15 +193,14 @@ export async function registerPublicPharmacyRoutes(
             : [];
         },
       );
-      const start = (query.data.page - 1) * query.data.pageSize;
 
       return {
-        data: activePharmacies.slice(start, start + query.data.pageSize),
+        data: activePharmacies,
         pagination: {
           page: query.data.page,
           pageSize: query.data.pageSize,
-          total: activePharmacies.length,
-          totalPages: Math.ceil(activePharmacies.length / query.data.pageSize),
+          total,
+          totalPages: Math.ceil(total / query.data.pageSize),
         },
       };
     },
