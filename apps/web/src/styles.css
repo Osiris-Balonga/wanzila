@@ -731,6 +731,11 @@ td {
     flex-direction: column;
   }
 }
+@media (max-width: 21rem) {
+  .admin-header > .brand--small span {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

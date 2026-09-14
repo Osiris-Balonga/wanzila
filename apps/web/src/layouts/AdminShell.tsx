@@ -68,7 +68,11 @@ export function AdminShell({ pathname }: AdminShellProps) {
         </p>
       </aside>
       <header className="admin-header">
-        <a className="brand brand--small" href="/admin">
+        <a
+          aria-label="Pharma Garde administration"
+          className="brand brand--small"
+          href="/admin"
+        >
           <img alt="" height="36" src="/brand-app-icon.png" width="36" />
           <span>Pharma Garde</span>
         </a>
