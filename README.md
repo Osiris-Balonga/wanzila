@@ -13,7 +13,7 @@ The repository is currently in its foundation phase. Product workflows and visua
 - `docs`: product, architecture, design, and operational references
 - `tests/e2e`: critical browser journeys
 
-The production application is deployed as one Node.js service on Hostinger. The API serves the built web assets and connects to the Hostinger MySQL database through Prisma.
+The production application is deployed as one Node.js service on Render. The API serves the built web assets and will connect to a managed MySQL database through Prisma.
 
 ## Requirements
 
