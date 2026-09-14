@@ -15,6 +15,7 @@ Closes #
 
 ## Review notes
 
+- [ ] All work was performed in a dedicated external worktree; the shared canonical checkout was not switched or modified.
 - [ ] The branch was created from the latest `dev`.
 - [ ] The pull request targets `dev`, unless this is the reviewed promotion from `dev` to `main`.
 - [ ] No credentials, generated output, or local automation files are included.
