@@ -2,13 +2,70 @@ import { describe, expect, it, vi } from "vitest";
 
 const SESSION_KEY = "wanzila.analytics.session.v1";
 const analyticsTransportModule = "./transport.js";
-const EVENT = {
-  schemaVersion: 1 as const,
-  name: "search_submitted" as const,
-  properties: { queryLength: 12 },
-};
+const PHARMACY_ID = "00000000-0000-4000-8000-000000002222";
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type BrowserEventName =
+  | "discovery_viewed"
+  | "search_submitted"
+  | "filters_applied"
+  | "empty_results_shown"
+  | "pharmacy_detail_viewed"
+  | "pharmacy_call_started"
+  | "route_started"
+  | "arrival_confirmed"
+  | "discovery_failed";
+
+type BrowserEvent = {
+  schemaVersion: 1;
+  name: BrowserEventName;
+  properties: Record<string, unknown>;
+};
+
+const browserEvents: readonly BrowserEvent[] = [
+  { schemaVersion: 1, name: "discovery_viewed", properties: {} },
+  {
+    schemaVersion: 1,
+    name: "search_submitted",
+    properties: { queryLength: 12 },
+  },
+  {
+    schemaVersion: 1,
+    name: "filters_applied",
+    properties: { district: "Plateau", arrondissement: "Poto-Poto" },
+  },
+  {
+    schemaVersion: 1,
+    name: "empty_results_shown",
+    properties: { queryLength: 12, resultCount: 0 },
+  },
+  {
+    schemaVersion: 1,
+    name: "pharmacy_detail_viewed",
+    properties: { pharmacyId: PHARMACY_ID },
+  },
+  {
+    schemaVersion: 1,
+    name: "pharmacy_call_started",
+    properties: { pharmacyId: PHARMACY_ID },
+  },
+  {
+    schemaVersion: 1,
+    name: "route_started",
+    properties: { pharmacyId: PHARMACY_ID },
+  },
+  {
+    schemaVersion: 1,
+    name: "arrival_confirmed",
+    properties: { pharmacyId: PHARMACY_ID },
+  },
+  {
+    schemaVersion: 1,
+    name: "discovery_failed",
+    properties: { code: "NETWORK_ERROR" },
+  },
+];
 
 type SessionStorageLike = {
   getItem: (key: string) => string | null;
@@ -36,7 +93,7 @@ type TransportOptions = {
 
 type AnalyticsTransport = {
   sessionId: () => string;
-  track: (event: typeof EVENT) => void;
+  track: (event: BrowserEvent) => void;
 };
 
 type AnalyticsTransportFactory = (
@@ -45,7 +102,7 @@ type AnalyticsTransportFactory = (
 
 type FetchRequest = { input: string; init: RequestInit };
 type BeaconRequest = { url: string; data: Blob };
-type BrowserEnvelope = typeof EVENT & { sessionId: string };
+type BrowserEnvelope = BrowserEvent & { sessionId: string };
 
 function isTransportFactory(
   candidate: unknown,
@@ -82,40 +139,49 @@ function strictObject(value: unknown, allowedKeys: readonly string[]) {
   return record;
 }
 
-function parseBrowserEnvelope(value: unknown): BrowserEnvelope {
+function parseBrowserEnvelope(
+  value: unknown,
+  expectedEvent: BrowserEvent,
+): BrowserEnvelope {
   const envelope = strictObject(value, [
     "schemaVersion",
     "name",
     "sessionId",
     "properties",
   ]);
-  const properties = strictObject(envelope.properties, ["queryLength"]);
+  const properties = strictObject(
+    envelope.properties,
+    Object.keys(expectedEvent.properties),
+  );
   if (
     envelope.schemaVersion !== 1 ||
-    envelope.name !== "search_submitted" ||
+    envelope.name !== expectedEvent.name ||
     typeof envelope.sessionId !== "string" ||
     !uuidPattern.test(envelope.sessionId) ||
-    properties.queryLength !== 12
+    JSON.stringify(properties) !== JSON.stringify(expectedEvent.properties)
   ) {
     throw new Error("Invalid analytics browser event envelope.");
   }
   return {
-    schemaVersion: 1,
-    name: "search_submitted",
+    ...expectedEvent,
     sessionId: envelope.sessionId,
-    properties: { queryLength: 12 },
   };
 }
 
-function expectSerializedEnvelope(serialized: string, sessionId: string): void {
-  expect(parseBrowserEnvelope(JSON.parse(serialized))).toEqual({
-    ...EVENT,
+function expectSerializedEnvelope(
+  serialized: string,
+  expectedEvent: BrowserEvent,
+  sessionId: string,
+): void {
+  expect(parseBrowserEnvelope(JSON.parse(serialized), expectedEvent)).toEqual({
+    ...expectedEvent,
     sessionId,
   });
 }
 
 async function expectBeaconRequest(
   request: BeaconRequest | undefined,
+  expectedEvent: BrowserEvent,
   sessionId: string,
 ): Promise<void> {
   if (!request) {
@@ -123,11 +189,12 @@ async function expectBeaconRequest(
   }
   expect(request.url).toBe("/api/v1/analytics/events");
   expect(request.data.type).toBe("application/json");
-  expectSerializedEnvelope(await request.data.text(), sessionId);
+  expectSerializedEnvelope(await request.data.text(), expectedEvent, sessionId);
 }
 
 function expectFetchRequest(
   request: FetchRequest | undefined,
+  expectedEvent: BrowserEvent,
   sessionId: string,
 ): void {
   if (!request) {
@@ -142,7 +209,7 @@ function expectFetchRequest(
   if (typeof request.init.body !== "string") {
     throw new Error("Expected fetch to send a JSON string body.");
   }
-  expectSerializedEnvelope(request.init.body, sessionId);
+  expectSerializedEnvelope(request.init.body, expectedEvent, sessionId);
 }
 
 describe("issue #11 browser analytics transport", () => {
@@ -163,36 +230,37 @@ describe("issue #11 browser analytics transport", () => {
     });
 
     const firstSessionId = firstTransport.sessionId();
-    expect(firstSessionId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    );
+    expect(firstSessionId).toMatch(uuidPattern);
     expect(firstTab.getItem(SESSION_KEY)).toBe(firstSessionId);
     expect(sameTabTransport.sessionId()).toBe(firstSessionId);
     expect(newTabTransport.sessionId()).not.toBe(firstSessionId);
   });
 
-  it("serializes the generated session and event through sendBeacon", async () => {
-    const createAnalyticsTransport = await loadTransport();
-    let beaconRequest: BeaconRequest | undefined;
-    const sendBeacon = vi.fn((url: string, data: Blob) => {
-      beaconRequest = { url, data };
-      return true;
-    });
-    const fetch =
-      vi.fn<(input: string, init: RequestInit) => Promise<Response>>();
-    const transport = createAnalyticsTransport({
-      endpoint: "/api/v1/analytics/events",
-      sessionStorage: new SessionStorageStub(),
-      navigator: { sendBeacon },
-      fetch,
-    });
+  it.each(browserEvents)(
+    "serializes the versioned $name event through sendBeacon",
+    async (event) => {
+      const createAnalyticsTransport = await loadTransport();
+      let beaconRequest: BeaconRequest | undefined;
+      const sendBeacon = vi.fn((url: string, data: Blob) => {
+        beaconRequest = { url, data };
+        return true;
+      });
+      const fetch =
+        vi.fn<(input: string, init: RequestInit) => Promise<Response>>();
+      const transport = createAnalyticsTransport({
+        endpoint: "/api/v1/analytics/events",
+        sessionStorage: new SessionStorageStub(),
+        navigator: { sendBeacon },
+        fetch,
+      });
 
-    const sessionId = transport.sessionId();
-    expect(() => transport.track(EVENT)).not.toThrow();
-    expect(sendBeacon).toHaveBeenCalledOnce();
-    expect(fetch).not.toHaveBeenCalled();
-    await expectBeaconRequest(beaconRequest, sessionId);
-  });
+      const sessionId = transport.sessionId();
+      expect(() => transport.track(event)).not.toThrow();
+      expect(sendBeacon).toHaveBeenCalledOnce();
+      expect(fetch).not.toHaveBeenCalled();
+      await expectBeaconRequest(beaconRequest, event, sessionId);
+    },
+  );
 
   it.each([
     { label: "is unavailable", navigator: {} },
@@ -215,13 +283,45 @@ describe("issue #11 browser analytics transport", () => {
         navigator,
         fetch,
       });
+      const event = browserEvents[1];
+      if (!event) {
+        throw new Error("Missing browser test event.");
+      }
 
       const sessionId = transport.sessionId();
-      expect(() => transport.track(EVENT)).not.toThrow();
+      expect(() => transport.track(event)).not.toThrow();
       expect(fetch).toHaveBeenCalledOnce();
-      expectFetchRequest(fetchRequest, sessionId);
+      expectFetchRequest(fetchRequest, event, sessionId);
     },
   );
+
+  it("falls back to a validated keepalive fetch when sendBeacon throws", async () => {
+    const createAnalyticsTransport = await loadTransport();
+    let fetchRequest: FetchRequest | undefined;
+    const fetch = vi.fn((input: string, init: RequestInit) => {
+      fetchRequest = { input, init };
+      return Promise.resolve(new Response(null, { status: 202 }));
+    });
+    const transport = createAnalyticsTransport({
+      endpoint: "/api/v1/analytics/events",
+      sessionStorage: new SessionStorageStub(),
+      navigator: {
+        sendBeacon: vi.fn(() => {
+          throw new Error("beacon unavailable");
+        }),
+      },
+      fetch,
+    });
+    const event = browserEvents[6];
+    if (!event) {
+      throw new Error("Missing browser test event.");
+    }
+
+    const sessionId = transport.sessionId();
+    expect(() => transport.track(event)).not.toThrow();
+    expect(fetch).toHaveBeenCalledOnce();
+    expectFetchRequest(fetchRequest, event, sessionId);
+  });
 
   it.each([
     { label: "is unavailable", sessionStorage: undefined },
@@ -250,26 +350,28 @@ describe("issue #11 browser analytics transport", () => {
         navigator: {},
         fetch,
       });
+      const event = browserEvents[0];
+      if (!event) {
+        throw new Error("Missing browser test event.");
+      }
 
       expect(() => {
-        transport.track(EVENT);
+        transport.track(event);
         action();
       }).not.toThrow();
       expect(action).toHaveBeenCalledOnce();
-      expect(transport.sessionId()).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-      );
+      expect(transport.sessionId()).toMatch(uuidPattern);
     },
   );
 
   it.each([
     {
-      label: "a rejected fetch",
+      label: "a rejected fetch without Beacon",
       navigator: {},
       fetch: vi.fn(() => Promise.reject(new Error("network unavailable"))),
     },
     {
-      label: "a synchronous sendBeacon failure",
+      label: "both synchronous Beacon and fetch failures",
       navigator: {
         sendBeacon: vi.fn(() => {
           throw new Error("beacon unavailable");
@@ -293,10 +395,19 @@ describe("issue #11 browser analytics transport", () => {
         route: vi.fn(),
         search: vi.fn(),
       };
+      const actionEvents = [
+        { action: actions.search, event: browserEvents[1] },
+        { action: actions.call, event: browserEvents[5] },
+        { action: actions.route, event: browserEvents[6] },
+        { action: actions.arrival, event: browserEvents[7] },
+      ];
 
-      for (const action of Object.values(actions)) {
+      for (const { action, event } of actionEvents) {
+        if (!event) {
+          throw new Error("Missing browser action event.");
+        }
         expect(() => {
-          transport.track(EVENT);
+          transport.track(event);
           action();
         }).not.toThrow();
       }

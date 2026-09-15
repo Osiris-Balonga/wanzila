@@ -84,6 +84,7 @@ type AnalyticsEnvelope = {
 };
 
 type StoredEvent = {
+  id: string;
   name: string;
   sessionId: string;
   pharmacyId: string | null;
@@ -108,7 +109,9 @@ function event(
   };
 }
 
-function expectedStoredEvent(payload: AnalyticsEnvelope): StoredEvent {
+function expectedStoredEvent(
+  payload: AnalyticsEnvelope,
+): Omit<StoredEvent, "id"> {
   const { pharmacyId, ...properties } = payload.properties;
   return {
     name: payload.name,
@@ -162,12 +165,18 @@ const validEvents: readonly AnalyticsEnvelope[] = [
 class AnalyticsPrismaStub {
   readonly stored: StoredEvent[] = [];
   readonly cleanupCalls: unknown[] = [];
+  private nextId = 1;
 
   readonly analyticsEvent = {
     create: (argument: unknown) => {
-      const data = (argument as { data: StoredEvent }).data;
-      this.stored.push(data);
-      return Promise.resolve(data);
+      const data = (argument as { data: Omit<StoredEvent, "id"> }).data;
+      const stored: StoredEvent = {
+        id: `00000000-0000-4000-8000-${String(this.nextId).padStart(12, "0")}`,
+        ...data,
+      };
+      this.nextId += 1;
+      this.stored.push(stored);
+      return Promise.resolve(stored);
     },
     deleteMany: (argument: unknown) => {
       this.cleanupCalls.push(argument);
@@ -232,8 +241,12 @@ describe("issue #11 analytics event ingestion contract", () => {
       });
 
       expect(response.statusCode).toBe(202);
-      acceptedResponse(response.json());
-      expect(prisma.stored).toEqual([expectedStoredEvent(payload)]);
+      const accepted = acceptedResponse(response.json());
+      expect(prisma.stored).toHaveLength(1);
+      const [stored] = prisma.stored;
+      expect(stored).toMatchObject(expectedStoredEvent(payload));
+      expect(stored?.id).toBe(accepted.data.id);
+      expect(stored?.occurredAt.toISOString()).toBe(accepted.data.receivedAt);
     },
   );
 
@@ -245,6 +258,10 @@ describe("issue #11 analytics event ingestion contract", () => {
     {
       label: "an unknown envelope key",
       payload: { ...event("discovery_viewed", {}), userId: "not-allowed" },
+    },
+    {
+      label: "an unsupported schema version",
+      payload: { ...event("discovery_viewed", {}), schemaVersion: 2 },
     },
     {
       label: "an unknown event property",
@@ -396,6 +413,7 @@ describe("issue #11 analytics event ingestion contract", () => {
 
     prisma.stored.push(
       {
+        id: "00000000-0000-4000-8000-000000000101",
         name: "discovery_viewed",
         sessionId: SESSION_ID,
         pharmacyId: null,
@@ -403,6 +421,7 @@ describe("issue #11 analytics event ingestion contract", () => {
         occurredAt: new Date("2026-08-16T11:59:59.999Z"),
       },
       {
+        id: "00000000-0000-4000-8000-000000000102",
         name: "discovery_viewed",
         sessionId: SESSION_ID,
         pharmacyId: null,
@@ -425,9 +444,10 @@ describe("issue #11 analytics event ingestion contract", () => {
       { where: { occurredAt: { lt: new Date("2026-08-16T12:00:00.000Z") } } },
       { where: { occurredAt: { lt: new Date("2026-08-16T12:00:00.000Z") } } },
     ]);
-    expect(prisma.stored).toEqual([
+    expect(prisma.stored).toMatchObject([
       expectedStoredEvent(event("discovery_viewed", {})),
       {
+        id: "00000000-0000-4000-8000-000000000102",
         name: "discovery_viewed",
         sessionId: SESSION_ID,
         pharmacyId: null,
@@ -482,7 +502,7 @@ describe.runIf(runMariaDbTests)(
       });
 
       expect(response.statusCode).toBe(202);
-      acceptedResponse(response.json());
+      const accepted = acceptedResponse(response.json());
       const stored = await prisma.analyticsEvent.findFirstOrThrow({
         where: { name: "route_started" },
       });
@@ -493,10 +513,46 @@ describe.runIf(runMariaDbTests)(
         properties: {},
         occurredAt: NOW,
       });
+      expect(stored.id).toBe(accepted.data.id);
+      expect(stored.occurredAt.toISOString()).toBe(accepted.data.receivedAt);
       expect(stored.properties).not.toHaveProperty("pharmacyId");
       expect(JSON.stringify(stored)).not.toMatch(
         /latitude|longitude|routePoints/i,
       );
+    });
+
+    it("retains the exact 30-day boundary when cleanup runs through real Prisma", async () => {
+      const expiredId = "00000000-0000-4000-8000-000000000201";
+      const boundaryId = "00000000-0000-4000-8000-000000000202";
+      await prisma.analyticsEvent.createMany({
+        data: [
+          {
+            id: expiredId,
+            name: "discovery_viewed",
+            sessionId: SESSION_ID,
+            properties: {},
+            occurredAt: new Date("2026-08-16T11:59:59.999Z"),
+          },
+          {
+            id: boundaryId,
+            name: "discovery_viewed",
+            sessionId: SESSION_ID,
+            properties: {},
+            occurredAt: new Date("2026-08-16T12:00:00.000Z"),
+          },
+        ],
+      });
+
+      const cleanupExpiredAnalyticsEvents = await loadRetentionCommand();
+      await cleanupExpiredAnalyticsEvents({ prisma, now: () => NOW });
+      expect(
+        await prisma.analyticsEvent.findMany({ orderBy: { id: "asc" } }),
+      ).toMatchObject([{ id: boundaryId }]);
+
+      await cleanupExpiredAnalyticsEvents({ prisma, now: () => NOW });
+      expect(
+        await prisma.analyticsEvent.findMany({ orderBy: { id: "asc" } }),
+      ).toMatchObject([{ id: boundaryId }]);
     });
   },
 );
