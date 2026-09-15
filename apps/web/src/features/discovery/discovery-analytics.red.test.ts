@@ -108,6 +108,21 @@ describe("issue #6 discovery analytics", () => {
     expect(JSON.stringify(track.mock.calls)).not.toContain(query);
   });
 
+  it("uses the normalized search length and ignores empty administrative filters", async () => {
+    const createDiscoveryAnalytics = await loadDiscoveryAnalytics();
+    const track = vi.fn();
+    const analytics = createDiscoveryAnalytics({ track });
+
+    analytics.submittedSearch("  Paix  ");
+    analytics.appliedFilters({ district: " ", arrondissement: "  " });
+
+    expect(track).toHaveBeenCalledOnce();
+    expect(track).toHaveBeenCalledWith({
+      name: "search_submitted",
+      properties: { queryLength: 4 },
+    });
+  });
+
   it("tracks only meaningful administrative filter applications", async () => {
     const createDiscoveryAnalytics = await loadDiscoveryAnalytics();
     const track = vi.fn();

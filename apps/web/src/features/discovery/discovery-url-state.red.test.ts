@@ -132,4 +132,16 @@ describe("issue #6 discovery URL state", () => {
       "page=3&pageSize=20",
     );
   });
+
+  it("canonicalizes unknown and repeated query parameters deterministically", async () => {
+    const urlState = await loadDiscoveryUrlStateApi();
+    const parsed = urlState.parseDiscoveryUrlState(
+      "?q=Alpha&q=Beta&district=Plateau&debug=true&page=2&page=3",
+    );
+
+    expect(parsed).toEqual({ q: "Alpha", district: "Plateau", page: 2 });
+    expect(urlState.serializeDiscoveryUrlState(parsed)).toBe(
+      "?q=Alpha&district=Plateau&page=2",
+    );
+  });
 });
