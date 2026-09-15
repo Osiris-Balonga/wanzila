@@ -28,6 +28,8 @@ const execFileAsync = promisify(execFile);
 const testDatabaseUrl = getDisposableTestDatabaseUrl(process.env);
 const disposableTestDatabaseUrl = testDatabaseUrl ?? "";
 const runMariaDbTests = Boolean(testDatabaseUrl);
+const SESSION_LIFETIME_SECONDS = 12 * 60 * 60;
+const SESSION_LIFETIME_MS = SESSION_LIFETIME_SECONDS * 1000;
 
 const authenticationRequired = {
   error: {
@@ -143,7 +145,10 @@ describe.runIf(runMariaDbTests)(
       });
     }
 
-    async function signIn(application: Awaited<ReturnType<typeof createApp>>) {
+    async function signIn(
+      application: Awaited<ReturnType<typeof createApp>>,
+      origin: string | undefined = WEB_ORIGIN,
+    ) {
       const request = signInRequestSchema.parse({
         email: ADMINISTRATOR.email,
         password: ADMINISTRATOR.password,
@@ -151,7 +156,10 @@ describe.runIf(runMariaDbTests)(
       const response = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: {
+          ...contentTypeHeaders(),
+          ...(origin === undefined ? {} : { origin }),
+        },
         payload: request,
       });
       expect(response.statusCode).toBe(200);
@@ -194,6 +202,9 @@ describe.runIf(runMariaDbTests)(
         ADMINISTRATOR.password,
       );
       expect(JSON.stringify(signedIn.response.json())).not.toContain(token);
+      expect(
+        new Date(signedIn.session.expiresAt).getTime() - now.getTime(),
+      ).toBe(SESSION_LIFETIME_MS);
       expect(signedIn.setCookie.split("; ")).toEqual(
         expect.arrayContaining([
           expect.stringMatching(/^wanzila_admin_session=[^;]+$/),
@@ -205,9 +216,7 @@ describe.runIf(runMariaDbTests)(
       );
       const maxAge = /(?:^|; )Max-Age=(\d+)(?:;|$)/.exec(signedIn.setCookie);
       expect(maxAge?.[1]).toBeDefined();
-      expect(Number(maxAge?.[1])).toBe(
-        (new Date(signedIn.session.expiresAt).getTime() - now.getTime()) / 1000,
-      );
+      expect(Number(maxAge?.[1])).toBe(SESSION_LIFETIME_SECONDS);
 
       const sessions = await prisma.$queryRawUnsafe<
         Array<{ tokenDigest: string; expiresAt: Date }>
@@ -234,6 +243,47 @@ describe.runIf(runMariaDbTests)(
       });
     });
 
+    it("requires the configured Origin before every sign-in attempt", async () => {
+      await bootstrapFixture();
+      const application = await openApp();
+
+      const missingOrigin = await application.inject({
+        method: "POST",
+        url: "/api/v1/admin/auth/sign-in",
+        headers: contentTypeHeaders(),
+        payload: {
+          email: ADMINISTRATOR.email,
+          password: ADMINISTRATOR.password,
+        },
+      });
+      const foreignOrigin = await application.inject({
+        method: "POST",
+        url: "/api/v1/admin/auth/sign-in",
+        headers: {
+          ...contentTypeHeaders(),
+          origin: "https://attacker.example",
+        },
+        payload: {
+          email: ADMINISTRATOR.email,
+          password: ADMINISTRATOR.password,
+        },
+      });
+
+      expect(missingOrigin.statusCode).toBe(403);
+      expect(foreignOrigin.statusCode).toBe(403);
+      expect(authenticationErrorSchema.parse(missingOrigin.json())).toEqual(
+        forbiddenOrigin,
+      );
+      expect(authenticationErrorSchema.parse(foreignOrigin.json())).toEqual(
+        forbiddenOrigin,
+      );
+      await expect(
+        prisma.$queryRawUnsafe<Array<{ tokenDigest: string }>>(
+          "SELECT tokenDigest FROM AdminSession",
+        ),
+      ).resolves.toEqual([]);
+    });
+
     it("does not reveal whether invalid credentials name an existing administrator", async () => {
       const administrator = await bootstrapFixture();
       const application = await openApp();
@@ -241,7 +291,7 @@ describe.runIf(runMariaDbTests)(
       const unknownUser = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
         payload: {
           email: "unknown@wanzila.test",
           password: ADMINISTRATOR.password,
@@ -250,7 +300,7 @@ describe.runIf(runMariaDbTests)(
       const wrongPassword = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
         payload: { email: administrator.email, password: "wrong-password" },
       });
 
@@ -280,7 +330,19 @@ describe.runIf(runMariaDbTests)(
         data: signedIn.session,
       });
 
-      now = new Date(new Date(signedIn.session.expiresAt).getTime() + 1);
+      const expiresAt = new Date(signedIn.session.expiresAt);
+      now = new Date(expiresAt.getTime() - 1);
+      const beforeExpiry = await application.inject({
+        method: "GET",
+        url: "/api/v1/admin/auth/session",
+        headers: { cookie },
+      });
+      expect(beforeExpiry.statusCode).toBe(200);
+      expect(
+        administratorSessionResponseSchema.parse(beforeExpiry.json()),
+      ).toEqual({ data: signedIn.session });
+
+      now = expiresAt;
       const expired = await application.inject({
         method: "GET",
         url: "/api/v1/admin/auth/session",
@@ -303,6 +365,20 @@ describe.runIf(runMariaDbTests)(
       expect(signedOutResponseSchema.parse(signedOut.json())).toEqual({
         data: { signedOut: true },
       });
+      expect(setCookie(signedOut).split("; ")).toEqual(
+        expect.arrayContaining([
+          "wanzila_admin_session=",
+          "HttpOnly",
+          "SameSite=Lax",
+          "Path=/",
+          "Max-Age=0",
+        ]),
+      );
+      const revokedSessions = await prisma.$queryRawUnsafe<
+        Array<{ revokedAt: Date | null }>
+      >("SELECT revokedAt FROM AdminSession WHERE revokedAt IS NOT NULL");
+      expect(revokedSessions).toHaveLength(1);
+      expect(revokedSessions[0]?.revokedAt).toBeInstanceOf(Date);
 
       const replay = await application.inject({
         method: "GET",
@@ -352,7 +428,7 @@ describe.runIf(runMariaDbTests)(
       });
     });
 
-    it("reuses the authorization pre-handler for a representative administrator-only route", async () => {
+    it("reuses authorization and Origin guards for a protected administrator mutation", async () => {
       await bootstrapFixture();
       const application = await openApp();
       await registerProtectedAdministratorTestRoute(
@@ -364,18 +440,38 @@ describe.runIf(runMariaDbTests)(
       const cookie = sessionCookie(signedIn.setCookie);
 
       const anonymous = await application.inject({
-        method: "GET",
+        method: "POST",
         url: "/api/v1/admin/test-only/protected",
+        headers: { origin: WEB_ORIGIN },
       });
       expect(anonymous.statusCode).toBe(401);
       expect(authenticationErrorSchema.parse(anonymous.json())).toEqual(
         authenticationRequired,
       );
 
-      const authorized = await application.inject({
-        method: "GET",
+      const missingOrigin = await application.inject({
+        method: "POST",
         url: "/api/v1/admin/test-only/protected",
         headers: { cookie },
+      });
+      const foreignOrigin = await application.inject({
+        method: "POST",
+        url: "/api/v1/admin/test-only/protected",
+        headers: { cookie, origin: "https://attacker.example" },
+      });
+      expect(missingOrigin.statusCode).toBe(403);
+      expect(foreignOrigin.statusCode).toBe(403);
+      expect(authenticationErrorSchema.parse(missingOrigin.json())).toEqual(
+        forbiddenOrigin,
+      );
+      expect(authenticationErrorSchema.parse(foreignOrigin.json())).toEqual(
+        forbiddenOrigin,
+      );
+
+      const authorized = await application.inject({
+        method: "POST",
+        url: "/api/v1/admin/test-only/protected",
+        headers: { cookie, origin: WEB_ORIGIN },
       });
       expect(authorized.statusCode).toBe(200);
       expect(
@@ -383,8 +479,8 @@ describe.runIf(runMariaDbTests)(
       ).toEqual({ data: { scope: "administrator" } });
     });
 
-    it("rate-limits sign-in attempts with the stable 429 envelope", async () => {
-      const application = await openApp("test", 2);
+    it("limits sign-in to five attempts per minute without charging health or public traffic", async () => {
+      const application = await openApp("test", 100);
       const request = {
         email: "unknown@wanzila.test",
         password: "invalid-password",
@@ -393,28 +489,67 @@ describe.runIf(runMariaDbTests)(
       const first = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
         payload: request,
       });
-      const second = await application.inject({
-        method: "POST",
-        url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
-        payload: request,
+      expect(first.statusCode).toBe(401);
+
+      const health = await application.inject({
+        method: "GET",
+        url: "/api/v1/health",
       });
+      const publicApi = await application.inject({
+        method: "GET",
+        url: "/api/v1/pharmacies",
+      });
+      expect(health.statusCode).toBe(200);
+      expect(publicApi.statusCode).toBe(200);
+
+      const remainingAttempts = [];
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        remainingAttempts.push(
+          await application.inject({
+            method: "POST",
+            url: "/api/v1/admin/auth/sign-in",
+            headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
+            payload: request,
+          }),
+        );
+      }
+      expect(remainingAttempts.map((response) => response.statusCode)).toEqual([
+        401, 401, 401, 401,
+      ]);
+
       const limited = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
         payload: request,
       });
-
-      expect(first.statusCode).toBe(401);
-      expect(second.statusCode).toBe(401);
       expect(limited.statusCode).toBe(429);
       expect(authenticationErrorSchema.parse(limited.json())).toEqual({
         error: { code: "RATE_LIMITED", message: "Too many requests" },
       });
+    });
+
+    it("does not inherit a lower global rate limit for sign-in", async () => {
+      const application = await openApp("test", 1);
+      const health = await application.inject({
+        method: "GET",
+        url: "/api/v1/health",
+      });
+      expect(health.statusCode).toBe(200);
+
+      const signInAfterHealth = await application.inject({
+        method: "POST",
+        url: "/api/v1/admin/auth/sign-in",
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
+        payload: {
+          email: "unknown@wanzila.test",
+          password: "invalid-password",
+        },
+      });
+      expect(signInAfterHealth.statusCode).toBe(401);
     });
   },
 );

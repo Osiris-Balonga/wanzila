@@ -34,7 +34,10 @@ describe("administrator authentication routes without persistence", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/admin/auth/sign-in",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: "http://localhost:5173",
+      },
       payload: {
         email: "administrator@wanzila.test",
         password: "correct-but-irrelevant",

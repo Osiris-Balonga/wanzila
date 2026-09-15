@@ -73,6 +73,9 @@ interface AdministratorAuthorizationModule {
     prisma: ApiPrismaClient;
     now: () => Date;
   }): AdministratorAuthorizationPreHandler;
+  createAllowedOriginPreHandler(options: {
+    webOrigin: string;
+  }): AdministratorAuthorizationPreHandler;
 }
 
 /**
@@ -99,8 +102,13 @@ export async function registerProtectedAdministratorTestRoute(
     prisma,
     now,
   });
+  const requireAllowedOrigin = authorization.createAllowedOriginPreHandler({
+    webOrigin: WEB_ORIGIN,
+  });
 
-  app.get("/api/v1/admin/test-only/protected", { preHandler }, () => ({
-    data: { scope: "administrator" as const },
-  }));
+  app.post(
+    "/api/v1/admin/test-only/protected",
+    { preHandler: [requireAllowedOrigin, preHandler] },
+    () => ({ data: { scope: "administrator" as const } }),
+  );
 }
