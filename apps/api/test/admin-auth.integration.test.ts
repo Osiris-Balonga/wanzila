@@ -190,6 +190,9 @@ describe.runIf(runMariaDbTests)(
       const signedIn = await signIn(application);
       const cookie = sessionCookie(signedIn.setCookie);
       const token = cookieToken(cookie);
+      const secondSignedIn = await signIn(application);
+      const secondCookie = sessionCookie(secondSignedIn.setCookie);
+      const secondToken = cookieToken(secondCookie);
 
       expect(signedIn.session).toMatchObject({
         administrator: {
@@ -202,6 +205,12 @@ describe.runIf(runMariaDbTests)(
         ADMINISTRATOR.password,
       );
       expect(JSON.stringify(signedIn.response.json())).not.toContain(token);
+      expect(JSON.stringify(secondSignedIn.response.json())).not.toContain(
+        secondToken,
+      );
+      expect(token).toMatch(/^[A-Za-z0-9_-]{43,}$/);
+      expect(secondToken).toMatch(/^[A-Za-z0-9_-]{43,}$/);
+      expect(secondToken).not.toBe(token);
       expect(
         new Date(signedIn.session.expiresAt).getTime() - now.getTime(),
       ).toBe(SESSION_LIFETIME_MS);
@@ -224,23 +233,41 @@ describe.runIf(runMariaDbTests)(
         "SELECT tokenDigest, expiresAt FROM AdminSession WHERE adminUserId = ?",
         administrator.id,
       );
-      expect(sessions).toHaveLength(1);
-      expect(sessions[0]?.tokenDigest).not.toBe(token);
-      expect(sessions[0]?.tokenDigest).not.toContain(token);
-      expect(sessions[0]?.expiresAt.toISOString()).toBe(
-        signedIn.session.expiresAt,
+      expect(sessions).toHaveLength(2);
+      expect(new Set(sessions.map((session) => session.tokenDigest)).size).toBe(
+        2,
       );
+      for (const session of sessions) {
+        expect(session.tokenDigest).not.toBe(token);
+        expect(session.tokenDigest).not.toBe(secondToken);
+        expect(session.tokenDigest).not.toContain(token);
+        expect(session.tokenDigest).not.toContain(secondToken);
+        expect(session.expiresAt.toISOString()).toBe(
+          signedIn.session.expiresAt,
+        );
+      }
 
       const malformed = await application.inject({
         method: "POST",
         url: "/api/v1/admin/auth/sign-in",
-        headers: contentTypeHeaders(),
+        headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
         payload: { ...ADMINISTRATOR, unexpected: true },
       });
       expect(malformed.statusCode).toBe(400);
       expect(authenticationErrorSchema.parse(malformed.json())).toEqual({
         error: { code: "BAD_REQUEST", message: "Invalid request parameters" },
       });
+    });
+
+    it("omits Secure from the session cookie in the explicit test environment", async () => {
+      await bootstrapFixture();
+      const application = await openApp("test");
+      const signedIn = await signIn(application);
+
+      expect(signedIn.setCookie.split("; ")).not.toContain("Secure");
+      expect(signedIn.setCookie.split("; ")).toEqual(
+        expect.arrayContaining(["HttpOnly", "SameSite=Lax", "Path=/"]),
+      );
     });
 
     it("requires the configured Origin before every sign-in attempt", async () => {

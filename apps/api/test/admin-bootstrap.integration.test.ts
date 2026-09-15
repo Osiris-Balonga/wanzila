@@ -17,6 +17,8 @@ const execFileAsync = promisify(execFile);
 const testDatabaseUrl = getDisposableTestDatabaseUrl(process.env);
 const disposableTestDatabaseUrl = testDatabaseUrl ?? "";
 const runMariaDbTests = Boolean(testDatabaseUrl);
+const bootstrapValidationError =
+  "ADMIN_BOOTSTRAP_INVALID: Invalid administrator bootstrap credentials";
 
 function bootstrapEnvironment(
   overrides: NodeJS.ProcessEnv = {},
@@ -97,21 +99,49 @@ describe.runIf(runMariaDbTests)("administrator bootstrap (MariaDB)", () => {
     expect(administrators[0]?.passwordHash).not.toContain(updatedPassword);
   });
 
-  it("refuses missing or weak bootstrap credentials without writing or logging secrets", async () => {
-    const weakPassword = "weak";
-    const weak = await bootstrapAdministrator(
-      bootstrapEnvironment({ WZ_ADMIN_BOOTSTRAP_PASSWORD: weakPassword }),
+  async function expectBootstrapValidationFailure(
+    overrides: NodeJS.ProcessEnv,
+    secret: string | undefined,
+  ) {
+    const result = await bootstrapAdministrator(
+      bootstrapEnvironment(overrides),
     );
-    expect(weak.exitCode).not.toBe(0);
-    expect(weak.output).not.toContain(weakPassword);
-    expect(weak.output).not.toContain("$argon2id$");
-
-    const missingPassword = await bootstrapAdministrator(
-      bootstrapEnvironment({ WZ_ADMIN_BOOTSTRAP_PASSWORD: undefined }),
-    );
-    expect(missingPassword.exitCode).not.toBe(0);
-    expect(missingPassword.output).not.toContain("$argon2id$");
-
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain(bootstrapValidationError);
+    expect(result.output).not.toContain("ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT");
+    if (secret) {
+      expect(result.output).not.toContain(secret);
+    }
+    expect(result.output).not.toContain("$argon2id$");
     await expect(prisma.adminUser.count()).resolves.toBe(0);
+  }
+
+  it("rejects a weak bootstrap password with a stable non-secret validation error", async () => {
+    const weakPassword = "weak";
+    await expectBootstrapValidationFailure(
+      { WZ_ADMIN_BOOTSTRAP_PASSWORD: weakPassword },
+      weakPassword,
+    );
+  });
+
+  it("rejects a missing bootstrap email with the stable validation error", async () => {
+    await expectBootstrapValidationFailure(
+      { WZ_ADMIN_BOOTSTRAP_EMAIL: undefined },
+      undefined,
+    );
+  });
+
+  it("rejects a missing bootstrap password with the stable validation error", async () => {
+    await expectBootstrapValidationFailure(
+      { WZ_ADMIN_BOOTSTRAP_PASSWORD: undefined },
+      undefined,
+    );
+  });
+
+  it("rejects a missing bootstrap display name with the stable validation error", async () => {
+    await expectBootstrapValidationFailure(
+      { WZ_ADMIN_BOOTSTRAP_DISPLAY_NAME: undefined },
+      undefined,
+    );
   });
 });
