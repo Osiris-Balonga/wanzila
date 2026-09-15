@@ -67,6 +67,9 @@ importers:
       '@wanzila/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      argon2:
+        specifier: 0.45.1
+        version: 0.45.1
       dotenv:
         specifier: 17.4.2
         version: 17.4.2
@@ -171,6 +174,9 @@ packages:
 
   '@electric-sql/pglite@0.4.3':
     resolution: {integrity: sha512-ichuWTgtd4mOM1G4SpyGJa5trT03lWbMypDV0fUXUCXg5hiHqVAz/bZyV68NqmkLB7WcYmj1RMJVSp8HV/v/ZQ==}
+
+  '@epic-web/invariant@1.0.0':
+    resolution: {integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -462,6 +468,10 @@ packages:
 
   '@oxc-project/types@0.149.0':
     resolution: {integrity: sha512-Efcc+iF0j3Bf67YjEqIqWXbX5XddXoK/Mw4K1/JuXwRCZ8N16VR7iT23nlCc9XrveFVh/E5Rqs2StT0V8v9LdA==}
+
+  '@phc/format@1.0.0':
+    resolution: {integrity: sha512-m7X9U6BG2+J+R1lSOdCiITLLrxm+cWlNI3HUFA92oLO77ObGNzaKdh8pMLqdZcshtkKuV84olNNXDfMc4FezBQ==}
+    engines: {node: '>=10'}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -1711,6 +1721,10 @@ packages:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
 
+  argon2@0.45.1:
+    resolution: {integrity: sha512-skm+/WCjkGqCQxF7FG1LuZXM5yvbFjgbfiCGsud2oLgaDhh6b6dbH0b1EkghbM+xx4Bj8Ape+KKgixoIlWZicQ==}
+    engines: {node: '>=16.17.0'}
+
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
@@ -1816,6 +1830,11 @@ packages:
   cookie@2.0.1:
     resolution: {integrity: sha512-yuToqVvRrj6pfDXREyQAAv8SkAEk/8GS3jQRTiUMm66TVtBYmqQeoEjL2Lmq8Rpo6271vH76InTChTitEAm65w==}
     engines: {node: '>=22'}
+
+  cross-env@10.1.0:
+    resolution: {integrity: sha512-GsYosgnACZTADcmEyJctkJIoqAhHjttw7RsFrVoJNXbsWWqaq6Ym+7kZjq6mS45O0jij6vtiReppKQEtqWy6Dw==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -2438,6 +2457,14 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
+
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
+    hasBin: true
+
   obug@2.2.1:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
@@ -2959,6 +2986,8 @@ snapshots:
 
   '@electric-sql/pglite@0.4.3': {}
 
+  '@epic-web/invariant@1.0.0': {}
+
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
 
@@ -3203,6 +3232,8 @@ snapshots:
   '@lukeed/ms@2.0.2': {}
 
   '@oxc-project/types@0.149.0': {}
+
+  '@phc/format@1.0.0': {}
 
   '@pinojs/redact@0.4.0': {}
 
@@ -4503,6 +4534,13 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
 
+  argon2@0.45.1:
+    dependencies:
+      '@phc/format': 1.0.0
+      cross-env: 10.1.0
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
+
   argparse@2.0.1: {}
 
   aria-hidden@1.2.6:
@@ -4590,6 +4628,11 @@ snapshots:
   cookie@1.1.1: {}
 
   cookie@2.0.1: {}
+
+  cross-env@10.1.0:
+    dependencies:
+      '@epic-web/invariant': 1.0.0
+      cross-spawn: 7.0.6
 
   cross-spawn@7.0.6:
     dependencies:
@@ -5167,6 +5210,10 @@ snapshots:
   nanoid@3.3.19: {}
 
   natural-compare@1.4.0: {}
+
+  node-addon-api@8.9.2: {}
+
+  node-gyp-build@4.8.4: {}
 
   obug@2.2.1: {}
 

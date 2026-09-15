@@ -5,6 +5,10 @@ generator client {
   importFileExtension = "js"
 }
 
+generator bootstrap_client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "mysql"
 }
@@ -40,6 +44,19 @@ model AdminUser {
   displayName  String   @db.VarChar(120)
   createdAt    DateTime @default(now()) @db.DateTime(3)
   updatedAt    DateTime @updatedAt @db.DateTime(3)
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id          String    @id @default(uuid()) @db.Char(36)
+  adminUserId String    @db.Char(36)
+  tokenDigest String    @unique @db.Char(64)
+  expiresAt   DateTime  @db.DateTime(3)
+  revokedAt   DateTime? @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
 }
 
 model Pharmacy {
