@@ -9,6 +9,7 @@ type LoadState =
     }
   | { kind: "empty" }
   | { kind: "offline" }
+  | { kind: "invalid-response" }
   | { kind: "api-error"; status: number };
 
 type EmergencyContactsClient = {
@@ -94,5 +95,33 @@ describe("issue #12 emergency contacts client boundary", () => {
     await expect(
       createEmergencyContactsClient({ fetch }).load({ onState: vi.fn() }),
     ).resolves.toEqual({ kind: "api-error", status: 500 });
+  });
+
+  it("turns a malformed 200 response into a recoverable invalid-response state", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "00000000-0000-4000-8000-000000001401",
+              label: "SAMU",
+              phone: "112",
+              position: 1,
+              unexpected: "browser must not trust this",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { createEmergencyContactsClient } = await loadClientModule();
+    const observed: LoadState["kind"][] = [];
+
+    await expect(
+      createEmergencyContactsClient({ fetch }).load({
+        onState: (state) => observed.push(state.kind),
+      }),
+    ).resolves.toEqual({ kind: "invalid-response" });
+    expect(observed).toEqual(["loading", "invalid-response"]);
   });
 });

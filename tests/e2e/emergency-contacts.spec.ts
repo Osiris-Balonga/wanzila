@@ -22,6 +22,18 @@ const emergencyResponse = {
   ],
 };
 
+const retriedEmergencyResponse = {
+  data: [
+    {
+      id: "00000000-0000-4000-8000-000000001499",
+      label: "Police de quartier",
+      phone: "117",
+      position: 1,
+      updatedAt: "2026-08-31T23:30:00.000Z",
+    },
+  ],
+};
+
 async function mockEmergencyContacts(page: Page): Promise<void> {
   await page.route("**/api/v1/emergency-contacts", async (route) => {
     await route.fulfill({ json: emergencyResponse });
@@ -68,7 +80,7 @@ for (const viewport of viewports) {
     await expect(
       page.getByRole("link", { name: "Appeler SAMU au 112" }),
     ).toHaveAttribute("href", "tel:112");
-    await expect(page.getByText("Mis à jour le")).toBeVisible();
+    await expect(page.getByText(/15 septembre 2026/i)).toBeVisible();
     await expect(
       page.getByText(/ne remplace pas.*services d’urgence/i),
     ).toBeVisible();
@@ -91,6 +103,85 @@ test("emergency call controls have a keyboard name, focus, and touch target", as
   const bounds = await callAction.boundingBox();
 
   expect(bounds).not.toBeNull();
+  expect(bounds?.width).toBeGreaterThanOrEqual(44);
+  expect(bounds?.height).toBeGreaterThanOrEqual(44);
+});
+
+test("an empty API result is presented as an accessible empty emergency state", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/emergency-contacts", async (route) => {
+    await route.fulfill({ json: { data: [] } });
+  });
+  await page.goto("/urgences");
+
+  await expect(page.getByRole("status")).toContainText(
+    "Aucun contact d’urgence n’est disponible",
+  );
+});
+
+test("an API failure exposes retry and recovers with the newly fetched contact", async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route("**/api/v1/emergency-contacts", async (route) => {
+    requests += 1;
+    if (requests === 1) {
+      await route.fulfill({ status: 503, json: { error: {} } });
+      return;
+    }
+
+    await route.fulfill({ json: retriedEmergencyResponse });
+  });
+  await page.goto("/urgences");
+
+  await expect(page.getByRole("status")).toContainText(
+    "Les contacts d’urgence sont indisponibles",
+  );
+  const retry = page.getByRole("button", { name: "Réessayer" });
+  await expect(retry).toBeVisible();
+  await retry.click();
+
+  await expect(
+    page.getByRole("link", { name: "Appeler Police de quartier au 117" }),
+  ).toHaveAttribute("href", "tel:117");
+  expect(requests).toBe(2);
+});
+
+test("an offline request has an accessible offline state", async ({ page }) => {
+  await page.route("**/api/v1/emergency-contacts", async (route) => {
+    await route.abort("failed");
+  });
+  await page.goto("/urgences");
+
+  await expect(page.getByRole("status")).toContainText(
+    "Impossible de joindre le service",
+  );
+});
+
+test("Tab traversal reaches a visibly focused emergency call action", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await mockEmergencyContacts(page);
+  await page.goto("/urgences");
+  const skipLink = page.getByRole("link", { name: "Aller au contenu" });
+  const brand = page.getByRole("link", { name: "Pharma Garde, accueil" });
+  const callAction = page.getByRole("link", { name: "Appeler SAMU au 112" });
+
+  await expect(callAction).toBeVisible();
+  await page.locator("body").press("Tab");
+  await expect(skipLink).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(brand).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(callAction).toBeFocused();
+  await expect(callAction).toHaveCSS("outline-style", "solid");
+  expect(
+    await callAction.evaluate((element) => element.matches(":focus-visible")),
+  ).toBe(true);
+  const bounds = await callAction.boundingBox();
+
   expect(bounds?.width).toBeGreaterThanOrEqual(44);
   expect(bounds?.height).toBeGreaterThanOrEqual(44);
 });
