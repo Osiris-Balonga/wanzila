@@ -3,6 +3,7 @@ import { z } from "zod";
 const administrativeFilterSchema = z.string().trim().min(1).max(120);
 const pharmacyIdSchema = z.uuid();
 const queryLengthSchema = z.number().int().min(0).max(180);
+export const analyticsSessionIdSchema = z.uuid();
 
 export const analyticsEventNameSchema = z.enum([
   "discovery_viewed",
@@ -20,7 +21,7 @@ const discoveryViewedEventSchema = z
   .object({
     schemaVersion: z.literal(1),
     name: z.literal("discovery_viewed"),
-    sessionId: z.uuid(),
+    sessionId: analyticsSessionIdSchema,
     properties: z.object({}).strict(),
   })
   .strict();
@@ -29,7 +30,7 @@ const searchSubmittedEventSchema = z
   .object({
     schemaVersion: z.literal(1),
     name: z.literal("search_submitted"),
-    sessionId: z.uuid(),
+    sessionId: analyticsSessionIdSchema,
     properties: z.object({ queryLength: queryLengthSchema }).strict(),
   })
   .strict();
@@ -38,7 +39,7 @@ const filtersAppliedEventSchema = z
   .object({
     schemaVersion: z.literal(1),
     name: z.literal("filters_applied"),
-    sessionId: z.uuid(),
+    sessionId: analyticsSessionIdSchema,
     properties: z
       .object({
         district: administrativeFilterSchema.optional(),
@@ -58,7 +59,7 @@ const emptyResultsShownEventSchema = z
   .object({
     schemaVersion: z.literal(1),
     name: z.literal("empty_results_shown"),
-    sessionId: z.uuid(),
+    sessionId: analyticsSessionIdSchema,
     properties: z
       .object({ queryLength: queryLengthSchema, resultCount: z.literal(0) })
       .strict(),
@@ -77,7 +78,7 @@ function pharmacyEventSchema(
     .object({
       schemaVersion: z.literal(1),
       name,
-      sessionId: z.uuid(),
+      sessionId: analyticsSessionIdSchema,
       properties: z.object({ pharmacyId: pharmacyIdSchema }).strict(),
     })
     .strict();
@@ -87,7 +88,7 @@ const discoveryFailedEventSchema = z
   .object({
     schemaVersion: z.literal(1),
     name: z.literal("discovery_failed"),
-    sessionId: z.uuid(),
+    sessionId: analyticsSessionIdSchema,
     properties: z
       .object({
         code: z.enum([

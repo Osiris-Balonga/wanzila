@@ -1,4 +1,7 @@
-import type { AnalyticsEventEnvelope } from "@wanzila/contracts";
+import {
+  analyticsSessionIdSchema,
+  type AnalyticsEventEnvelope,
+} from "@wanzila/contracts";
 
 type SessionStorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -18,7 +21,10 @@ function createSessionId(sessionStorage?: SessionStorageLike): string {
     // Analytics must remain best-effort when browser storage is unavailable.
   }
 
-  if (storedSessionId && /^[0-9a-f-]{36}$/i.test(storedSessionId)) {
+  if (
+    storedSessionId !== null &&
+    analyticsSessionIdSchema.safeParse(storedSessionId).success
+  ) {
     return storedSessionId;
   }
 

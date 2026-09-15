@@ -44,6 +44,17 @@ export interface AnalyticsRouteOptions {
   rateLimitMax: number;
 }
 
+function isAnalyticsJsonParseError(
+  error: Error & { statusCode?: number },
+): boolean {
+  return (
+    error.statusCode === 400 &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code.startsWith("FST_ERR_CTP_")
+  );
+}
+
 function createAnalyticsRateLimiter(max: number) {
   const attempts = new Map<string, { count: number; expiresAt: number }>();
   const windowMilliseconds = 60 * 1000;
@@ -83,6 +94,10 @@ export function registerAnalyticsRoutes(
       errorHandler: (error, _request, reply) => {
         if (error.statusCode === 413) {
           sendAnalyticsPayloadTooLarge(reply);
+          return;
+        }
+        if (isAnalyticsJsonParseError(error)) {
+          sendAnalyticsBadRequest(reply);
           return;
         }
         void reply.send(error);
