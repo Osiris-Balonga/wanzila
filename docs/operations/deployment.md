@@ -27,10 +27,13 @@ Production settings:
 - health endpoint: `/api/v1/health`
 - environment: `API_PORT=10000`, `NODE_ENV=production`, `SERVE_WEB=true`
 
-Database and session secrets will be configured in Render, never committed:
+Database and administrator bootstrap credentials will be configured in Render,
+never committed:
 
 - `DATABASE_URL`
-- `SESSION_SECRET`
+- `WZ_ADMIN_BOOTSTRAP_EMAIL`
+- `WZ_ADMIN_BOOTSTRAP_PASSWORD`
+- `WZ_ADMIN_BOOTSTRAP_DISPLAY_NAME`
 
 The application shell currently deploys without a database connection. `DATABASE_URL` will be added when the managed MySQL service is provisioned.
 

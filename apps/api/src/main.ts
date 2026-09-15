@@ -8,6 +8,7 @@ async function bootstrap() {
     webOrigin: environment.webOrigin,
     databaseUrl: environment.databaseUrl,
     logger: environment.nodeEnvironment !== "test",
+    nodeEnvironment: environment.nodeEnvironment,
     ...(environment.serveWeb
       ? { webRoot: path.resolve(process.cwd(), "apps/web/dist") }
       : {}),

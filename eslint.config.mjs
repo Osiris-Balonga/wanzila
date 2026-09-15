@@ -19,6 +19,16 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/api/src/modules/admin-auth/bootstrap.mjs"],
+    languageOptions: {
+      globals: { console: "readonly", process: "readonly" },
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
     files: ["**/*.config.{ts,mts}", "tests/**/*.ts"],
     rules: { "@typescript-eslint/no-unsafe-assignment": "off" },
   },

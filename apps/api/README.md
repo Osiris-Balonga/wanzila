@@ -31,6 +31,19 @@ All public discovery routes are mounted below `/api/v1` and use JSON responses:
 
 Invalid query/path values return `400` with `{ "error": { "code": "BAD_REQUEST", ... } }`; a valid unknown pharmacy ID returns `404`. Unexpected failures use a stable `500` response without database details.
 
+## Administrator authentication
+
+Administrator sessions are opaque, database-backed cookies that expire after 12 hours. The database stores only a SHA-256 digest of each session token. Bootstrap the initial administrator (or update its credentials idempotently) using environment variables:
+
+```bash
+WZ_ADMIN_BOOTSTRAP_EMAIL=administrator@example.com \
+WZ_ADMIN_BOOTSTRAP_PASSWORD='a strong password' \
+WZ_ADMIN_BOOTSTRAP_DISPLAY_NAME='Administrator' \
+pnpm --filter @wanzila/api admin:bootstrap
+```
+
+The bootstrap command fails closed with `ADMIN_BOOTSTRAP_INVALID` when any required credential is absent or invalid. Never commit these environment values. Sign-in and every cookie-authenticated administrator mutation require the exact configured `WEB_ORIGIN` request header.
+
 ### MariaDB integration tests
 
 The integration suite is deliberately opt-in so a normal local unit-test run never mutates a developer database. Point `WZ_TEST_DATABASE_URL` to a disposable MariaDB database and set `WZ_RUN_MARIADB_TESTS=true`; the suite applies Prisma migrations and replaces all relevant rows with controlled fixtures before each test:

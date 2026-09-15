@@ -11,6 +11,7 @@ import {
 } from "./infrastructure/prisma.js";
 import { registerEmergencyContactRoutes } from "./modules/public-api/emergency-contact-routes.js";
 import { registerPublicPharmacyRoutes } from "./modules/public-api/routes.js";
+import { registerAdministratorAuthRoutes } from "./modules/admin-auth/routes.js";
 import {
   internalError,
   sendClientError,
@@ -39,6 +40,7 @@ export interface AppOptions {
   now?: () => Date;
   sourceFreshnessMaxAgeMs?: number;
   rateLimitMax?: number;
+  nodeEnvironment?: "development" | "test" | "production";
 }
 
 export async function createApp(options: AppOptions) {
@@ -50,6 +52,7 @@ export async function createApp(options: AppOptions) {
   const sourceFreshnessMaxAgeMs =
     options.sourceFreshnessMaxAgeMs ?? DEFAULT_SOURCE_FRESHNESS_MAX_AGE_MS;
   const rateLimitMax = options.rateLimitMax ?? 120;
+  const nodeEnvironment = options.nodeEnvironment ?? "development";
 
   await app.register(helmet);
   await app.register(cookie);
@@ -63,6 +66,13 @@ export async function createApp(options: AppOptions) {
     status: "ok",
     service: "wanzila-api",
   }));
+
+  registerAdministratorAuthRoutes(app, {
+    prisma,
+    now,
+    webOrigin: options.webOrigin,
+    nodeEnvironment,
+  });
 
   if (prisma) {
     app.addHook("onClose", async () => {
