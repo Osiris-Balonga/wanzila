@@ -1,12 +1,16 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  adminPharmacyResponseSchema,
+  createAdminPharmacyRequestSchema,
+  type AdminPharmacy,
+} from "@wanzila/contracts";
 
 const administrator = {
   email: "administrator.auth@wanzila.test",
   password: "Correct-Horse-Battery-7!",
 };
 
-const pharmacy = {
-  id: "00000000-0000-4000-8000-000000009501",
+const pharmacyInput = createAdminPharmacyRequestSchema.parse({
   name: "Pharmacie Nouvelle",
   address: {
     line: "42 avenue de la Paix",
@@ -15,16 +19,36 @@ const pharmacy = {
   },
   phone: "+242060009999",
   coordinates: { latitude: -4.263708, longitude: 15.242885 },
-  status: "DRAFT",
-  createdAt: "2026-09-15T12:00:00.000Z",
-  updatedAt: "2026-09-15T12:00:00.000Z",
-};
+});
+
+const pharmacy = adminPharmacyResponseSchema.parse({
+  data: {
+    id: "00000000-0000-4000-8000-000000009501",
+    ...pharmacyInput,
+    status: "DRAFT",
+    createdAt: "2026-09-15T12:00:00.000Z",
+    updatedAt: "2026-09-15T12:00:00.000Z",
+  },
+}).data;
+
+type Deferred = { promise: Promise<void>; resolve: () => void };
+
+function deferred(): Deferred {
+  let resolve: () => void = () => {};
+  const promise = new Promise<void>((complete) => {
+    resolve = () => complete();
+  });
+  return { promise, resolve };
+}
 
 type AdminApiState = {
   signedIn: boolean;
   dutyEligible: boolean;
-  pharmacy: typeof pharmacy;
+  pharmacy: AdminPharmacy;
   createRequests: number;
+  listRequests: string[];
+  holdList?: Deferred;
+  holdCreate?: Deferred;
   listMode?: "empty" | "forbidden" | "server-error";
   createMode?: "validation" | "conflict";
 };
@@ -107,6 +131,11 @@ async function mockAdminApi(page: Page, state: AdminApiState): Promise<void> {
     }
 
     if (pathname === "/api/v1/admin/pharmacies" && request.method() === "GET") {
+      state.listRequests.push(url.search);
+      if (state.holdList) {
+        await state.holdList.promise;
+        delete state.holdList;
+      }
       if (state.listMode === "forbidden") {
         await fulfillJson(route, 403, {
           error: { code: "ORIGIN_FORBIDDEN", message: "Access is forbidden" },
@@ -119,14 +148,17 @@ async function mockAdminApi(page: Page, state: AdminApiState): Promise<void> {
         });
         return;
       }
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const pageSize = Number(url.searchParams.get("pageSize") ?? "20");
       const data = state.listMode === "empty" ? [] : [state.pharmacy];
       await fulfillJson(route, 200, {
         data,
         pagination: {
-          page: 1,
-          pageSize: 20,
-          total: data.length,
-          totalPages: 1,
+          page,
+          pageSize,
+          total: state.listMode === "empty" ? 0 : 101,
+          totalPages:
+            state.listMode === "empty" ? 0 : Math.ceil(101 / pageSize),
         },
       });
       return;
@@ -137,6 +169,10 @@ async function mockAdminApi(page: Page, state: AdminApiState): Promise<void> {
       request.method() === "POST"
     ) {
       state.createRequests += 1;
+      if (state.holdCreate) {
+        await state.holdCreate.promise;
+        delete state.holdCreate;
+      }
       if (state.createMode === "validation") {
         await fulfillJson(route, 400, {
           error: { code: "BAD_REQUEST", message: "Invalid request parameters" },
@@ -153,7 +189,11 @@ async function mockAdminApi(page: Page, state: AdminApiState): Promise<void> {
         return;
       }
       state.pharmacy = { ...state.pharmacy, status: "DRAFT" };
-      await fulfillJson(route, 201, { data: state.pharmacy });
+      await fulfillJson(
+        route,
+        201,
+        adminPharmacyResponseSchema.parse({ data: state.pharmacy }),
+      );
       return;
     }
 
@@ -170,7 +210,6 @@ async function mockAdminApi(page: Page, state: AdminApiState): Promise<void> {
 
     if (pathname === `/api/v1/admin/pharmacies/${state.pharmacy.id}/publish`) {
       state.pharmacy = { ...state.pharmacy, status: "PUBLISHED" };
-      state.dutyEligible = true;
       await fulfillJson(route, 200, { data: state.pharmacy });
       return;
     }
@@ -218,6 +257,7 @@ function newState(): AdminApiState {
     dutyEligible: false,
     pharmacy: { ...pharmacy, address: { ...pharmacy.address } },
     createRequests: 0,
+    listRequests: [],
   };
 }
 
@@ -234,7 +274,7 @@ async function fillPharmacyForm(page: Page): Promise<void> {
   await page.getByLabel("Adresse").fill(pharmacy.address.line);
   await page.getByLabel("District").fill(pharmacy.address.district);
   await page.getByLabel("Arrondissement").fill(pharmacy.address.arrondissement);
-  await page.getByLabel("Téléphone").fill(pharmacy.phone);
+  await page.getByLabel("Téléphone").fill(pharmacy.phone ?? "");
   await page.getByLabel("Latitude").fill(String(pharmacy.coordinates.latitude));
   await page
     .getByLabel("Longitude")
@@ -282,12 +322,15 @@ for (const viewport of [
     ).toBeVisible();
 
     await fillPharmacyForm(page);
+    state.holdCreate = deferred();
     const submit = page.getByRole("button", {
       name: "Enregistrer le brouillon",
     });
-    await submit.dblclick();
+    await submit.click();
     await expect(submit).toBeDisabled();
+    await page.keyboard.press("Enter");
     await expect.poll(() => state.createRequests).toBe(1);
+    state.holdCreate.resolve();
     await expect(
       page.getByRole("heading", { name: pharmacy.name }),
     ).toBeVisible();
@@ -302,12 +345,26 @@ for (const viewport of [
     await page.getByRole("button", { name: "Publier" }).click();
     await expect(page.getByText("Publiée")).toBeVisible();
     await page.goto("/");
+    await expect(page.getByText(pharmacy.name)).toBeHidden();
+    state.dutyEligible = true;
+    await page.reload();
     await expect(page.getByText(pharmacy.name)).toBeVisible();
 
     await page.goto(`/admin/pharmacies/${pharmacy.id}`);
     const archive = page.getByRole("button", { name: "Archiver" });
-    await archive.focus();
-    await archive.press("Enter");
+    for (let index = 0; index < 30; index += 1) {
+      await page.keyboard.press("Tab");
+      if (
+        await archive.evaluate((element) => element === document.activeElement)
+      ) {
+        break;
+      }
+    }
+    await expect(archive).toBeFocused();
+    expect(
+      await archive.evaluate((element) => element.matches(":focus-visible")),
+    ).toBe(true);
+    await page.keyboard.press("Enter");
     const confirmation = page.getByRole("alertdialog", {
       name: "Archiver cette pharmacie ?",
     });
@@ -315,13 +372,51 @@ for (const viewport of [
     await page.keyboard.press("Escape");
     await expect(confirmation).toBeHidden();
     await expect(archive).toBeFocused();
-    await archive.press("Enter");
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.getByRole("button", { name: "Publier" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(archive).toBeFocused();
+    await page.keyboard.press("Enter");
     await confirmation.getByRole("button", { name: "Archiver" }).click();
 
     await page.goto("/");
     await expect(page.getByText(pharmacy.name)).toBeHidden();
   });
 }
+
+test("generates deterministic accessible filter and pagination queries", async ({
+  page,
+}) => {
+  const state = newState();
+  await mockAdminApi(page, state);
+  await signIn(page);
+
+  await page.getByLabel("Filtrer par nom").fill("Nouvelle");
+  await page.getByLabel("District").selectOption("Plateau");
+  await page.getByLabel("Arrondissement").selectOption("Poto-Poto");
+  await page.getByLabel("Statut").selectOption("DRAFT");
+  await page.getByLabel("Résultats par page").selectOption("50");
+  await page.getByRole("button", { name: "Appliquer les filtres" }).click();
+  await expect
+    .poll(() => state.listRequests)
+    .toContain(
+      "?page=1&pageSize=50&name=Nouvelle&district=Plateau&arrondissement=Poto-Poto&status=DRAFT",
+    );
+
+  const previous = page.getByRole("button", { name: "Page précédente" });
+  const next = page.getByRole("button", { name: "Page suivante" });
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeEnabled();
+  await next.click();
+  await expect
+    .poll(() => state.listRequests)
+    .toContain(
+      "?page=2&pageSize=50&name=Nouvelle&district=Plateau&arrondissement=Poto-Poto&status=DRAFT",
+    );
+  await next.click();
+  await expect(next).toBeDisabled();
+  await expect(previous).toBeEnabled();
+});
 
 test("renders loading, empty, forbidden, validation, conflict, and server errors accessibly", async ({
   page,
@@ -330,10 +425,13 @@ test("renders loading, empty, forbidden, validation, conflict, and server errors
   await mockAdminApi(page, state);
   state.signedIn = true;
 
+  state.holdList = deferred();
   await page.goto("/admin/pharmacies");
   await expect(
     page.getByRole("status", { name: "Chargement des pharmacies" }),
   ).toBeVisible();
+  state.holdList.resolve();
+  await expect(page.getByText(pharmacy.name)).toBeVisible();
 
   state.listMode = "empty";
   await page.reload();
@@ -346,8 +444,15 @@ test("renders loading, empty, forbidden, validation, conflict, and server errors
   state.listMode = "server-error";
   await page.reload();
   await expect(page.getByRole("alert")).toContainText("réessayer");
+  const failedRequests = state.listRequests.length;
+  delete state.listMode;
+  await page.getByRole("button", { name: "Réessayer" }).click();
+  await expect
+    .poll(() => state.listRequests.length)
+    .toBeGreaterThan(failedRequests);
+  await expect(page.getByText(pharmacy.name)).toBeVisible();
 
-  state.listMode = undefined;
+  delete state.listMode;
   state.createMode = "validation";
   await page.goto("/admin/pharmacies/nouvelle");
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();

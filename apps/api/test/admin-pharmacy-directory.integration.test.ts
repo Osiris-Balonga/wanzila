@@ -2,6 +2,9 @@ import { execFile } from "node:child_process";
 import type { OutgoingHttpHeaders } from "node:http";
 import { promisify } from "node:util";
 import {
+  adminPharmacyErrorSchema,
+  adminPharmacyListResponseSchema,
+  adminPharmacyResponseSchema,
   pharmacyDetailResponseSchema,
   pharmacyListResponseSchema,
 } from "@wanzila/contracts";
@@ -18,14 +21,6 @@ import {
   WEB_ORIGIN,
   workspaceRoot,
 } from "./support/admin-auth-fixtures.js";
-import {
-  adminPharmacyErrorSchema,
-  adminPharmacyListQuerySchema,
-  adminPharmacyListResponseSchema,
-  adminPharmacyResponseSchema,
-  createAdminPharmacyRequestSchema,
-  updateAdminPharmacyRequestSchema,
-} from "./support/admin-pharmacy-contract.js";
 import { getDisposableTestDatabaseUrl } from "./support/test-database.js";
 
 const execFileAsync = promisify(execFile);
@@ -39,6 +34,7 @@ const ids = {
   bravo: "00000000-0000-4000-8000-000000009102",
   draft: "00000000-0000-4000-8000-000000009103",
   archived: "00000000-0000-4000-8000-000000009104",
+  draftForPublish: "00000000-0000-4000-8000-000000009105",
   missing: "00000000-0000-4000-8000-000000009199",
   duty: "00000000-0000-4000-8000-000000009201",
 } as const;
@@ -126,38 +122,19 @@ async function createFixtures(prisma: ApiPrismaClient): Promise<void> {
         longitude: "15.2410000",
         status: "ARCHIVED",
       },
+      {
+        id: ids.draftForPublish,
+        name: "Pharmacie En préparation",
+        address: "5 avenue du Marché",
+        district: "Bacongo",
+        arrondissement: "Bacongo",
+        latitude: "-4.2620000",
+        longitude: "15.2420000",
+        status: "DRAFT",
+      },
     ],
   });
 }
-
-describe("admin pharmacy directory test contracts", () => {
-  it("keeps all request and response objects strict", () => {
-    expect(() =>
-      createAdminPharmacyRequestSchema.parse({
-        ...draftInput,
-        unexpected: true,
-      }),
-    ).toThrow();
-    expect(() => updateAdminPharmacyRequestSchema.parse({})).toThrow(
-      "At least one pharmacy field is required.",
-    );
-    expect(() =>
-      adminPharmacyListQuerySchema.parse({ status: "PUBLISHED", extra: "no" }),
-    ).toThrow();
-    expect(() =>
-      adminPharmacyResponseSchema.parse({
-        data: {
-          id: ids.alpha,
-          ...draftInput,
-          status: "DRAFT",
-          createdAt: NOW.toISOString(),
-          updatedAt: NOW.toISOString(),
-          unexpected: true,
-        },
-      }),
-    ).toThrow();
-  });
-});
 
 describe.runIf(runMariaDbTests)(
   "admin pharmacy directory HTTP contract (MariaDB)",
@@ -226,10 +203,10 @@ describe.runIf(runMariaDbTests)(
       expect(adminPharmacyListResponseSchema.parse(first.json())).toMatchObject(
         {
           data: [
-            { id: ids.archived, status: "ARCHIVED" },
             { id: ids.alpha, status: "PUBLISHED" },
+            { id: ids.archived, status: "ARCHIVED" },
           ],
-          pagination: { page: 1, pageSize: 2, total: 4, totalPages: 2 },
+          pagination: { page: 1, pageSize: 2, total: 5, totalPages: 3 },
         },
       );
 
@@ -329,10 +306,10 @@ describe.runIf(runMariaDbTests)(
       });
     });
 
-    it("publishes DRAFT records, archives DRAFT or PUBLISHED records, and rejects invalid repeated transitions atomically", async () => {
+    it("permits DRAFT publication and DRAFT or PUBLISHED archival", async () => {
       const published = await app.inject({
         method: "POST",
-        url: `/api/v1/admin/pharmacies/${ids.draft}/publish`,
+        url: `/api/v1/admin/pharmacies/${ids.draftForPublish}/publish`,
         headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
       });
       expect(published.statusCode).toBe(200);
@@ -340,28 +317,34 @@ describe.runIf(runMariaDbTests)(
         adminPharmacyResponseSchema.parse(published.json()).data.status,
       ).toBe("PUBLISHED");
 
-      const repeatedPublish = await app.inject({
+      const archivedPublished = await app.inject({
         method: "POST",
-        url: `/api/v1/admin/pharmacies/${ids.draft}/publish`,
+        url: `/api/v1/admin/pharmacies/${ids.draftForPublish}/archive`,
         headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
       });
-      expect(repeatedPublish.statusCode).toBe(409);
-      expect(adminPharmacyErrorSchema.parse(repeatedPublish.json())).toEqual({
-        error: {
-          code: "CONFLICT",
-          message: "Invalid pharmacy status transition",
-        },
-      });
+      expect(archivedPublished.statusCode).toBe(200);
+      expect(
+        adminPharmacyResponseSchema.parse(archivedPublished.json()).data.status,
+      ).toBe("ARCHIVED");
 
-      const archived = await app.inject({
+      const archivedDraft = await app.inject({
         method: "POST",
         url: `/api/v1/admin/pharmacies/${ids.draft}/archive`,
         headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
       });
-      expect(archived.statusCode).toBe(200);
+      expect(archivedDraft.statusCode).toBe(200);
       expect(
-        adminPharmacyResponseSchema.parse(archived.json()).data.status,
+        adminPharmacyResponseSchema.parse(archivedDraft.json()).data.status,
       ).toBe("ARCHIVED");
+    });
+
+    it("rejects terminal and repeated transitions without changing persisted records", async () => {
+      const firstArchive = await app.inject({
+        method: "POST",
+        url: `/api/v1/admin/pharmacies/${ids.draft}/archive`,
+        headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
+      });
+      expect(firstArchive.statusCode).toBe(200);
 
       const repeatedArchive = await app.inject({
         method: "POST",
@@ -376,14 +359,57 @@ describe.runIf(runMariaDbTests)(
         },
       });
 
-      const terminalRecord = await app.inject({
+      const archivedPublish = await app.inject({
+        method: "POST",
+        url: `/api/v1/admin/pharmacies/${ids.archived}/publish`,
+        headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
+      });
+      expect(archivedPublish.statusCode).toBe(409);
+      expect(adminPharmacyErrorSchema.parse(archivedPublish.json())).toEqual({
+        error: {
+          code: "CONFLICT",
+          message: "Invalid pharmacy status transition",
+        },
+      });
+
+      for (const id of [ids.draft, ids.archived]) {
+        const terminalRecord = await app.inject({
+          method: "GET",
+          url: `/api/v1/admin/pharmacies/${id}`,
+          headers: { cookie: administratorCookie },
+        });
+        expect(
+          adminPharmacyResponseSchema.parse(terminalRecord.json()).data.status,
+        ).toBe("ARCHIVED");
+      }
+
+      const published = await app.inject({
+        method: "POST",
+        url: `/api/v1/admin/pharmacies/${ids.draftForPublish}/publish`,
+        headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
+      });
+      expect(published.statusCode).toBe(200);
+      const repeatedPublish = await app.inject({
+        method: "POST",
+        url: `/api/v1/admin/pharmacies/${ids.draftForPublish}/publish`,
+        headers: { cookie: administratorCookie, origin: WEB_ORIGIN },
+      });
+      expect(repeatedPublish.statusCode).toBe(409);
+      expect(adminPharmacyErrorSchema.parse(repeatedPublish.json())).toEqual({
+        error: {
+          code: "CONFLICT",
+          message: "Invalid pharmacy status transition",
+        },
+      });
+      const unchangedPublished = await app.inject({
         method: "GET",
-        url: `/api/v1/admin/pharmacies/${ids.draft}`,
+        url: `/api/v1/admin/pharmacies/${ids.draftForPublish}`,
         headers: { cookie: administratorCookie },
       });
       expect(
-        adminPharmacyResponseSchema.parse(terminalRecord.json()).data.status,
-      ).toBe("ARCHIVED");
+        adminPharmacyResponseSchema.parse(unchangedPublished.json()).data
+          .status,
+      ).toBe("PUBLISHED");
     });
 
     it("rejects trimmed and case-normalized duplicate creates with a deterministic conflict", async () => {
@@ -421,9 +447,38 @@ describe.runIf(runMariaDbTests)(
           method: "GET" as const,
           url: `/api/v1/admin/pharmacies/${ids.alpha}`,
         },
-        { method: "POST" as const, url: "/api/v1/admin/pharmacies" },
       ]) {
         const response = await app.inject(request);
+        expect(response.statusCode).toBe(401);
+        expect(adminPharmacyErrorSchema.parse(response.json()).error.code).toBe(
+          "AUTHENTICATION_REQUIRED",
+        );
+      }
+
+      for (const request of [
+        {
+          method: "POST" as const,
+          url: "/api/v1/admin/pharmacies",
+          payload: draftInput,
+        },
+        {
+          method: "PATCH" as const,
+          url: `/api/v1/admin/pharmacies/${ids.draft}`,
+          payload: { name: "Mise à jour" },
+        },
+        {
+          method: "POST" as const,
+          url: `/api/v1/admin/pharmacies/${ids.draft}/publish`,
+        },
+        {
+          method: "POST" as const,
+          url: `/api/v1/admin/pharmacies/${ids.draft}/archive`,
+        },
+      ]) {
+        const response = await app.inject({
+          ...request,
+          headers: { ...contentTypeHeaders(), origin: WEB_ORIGIN },
+        });
         expect(response.statusCode).toBe(401);
         expect(adminPharmacyErrorSchema.parse(response.json()).error.code).toBe(
           "AUTHENTICATION_REQUIRED",
@@ -483,6 +538,44 @@ describe.runIf(runMariaDbTests)(
       expect(adminPharmacyErrorSchema.parse(malformed.json()).error.code).toBe(
         "BAD_REQUEST",
       );
+
+      for (const url of [
+        "/api/v1/admin/pharmacies?page=0",
+        "/api/v1/admin/pharmacies?pageSize=51",
+        "/api/v1/admin/pharmacies?status=INVALID",
+        "/api/v1/admin/pharmacies?unexpected=value",
+      ]) {
+        const malformedQuery = await app.inject({
+          method: "GET",
+          url,
+          headers: { cookie: administratorCookie },
+        });
+        expect(malformedQuery.statusCode).toBe(400);
+        expect(
+          adminPharmacyErrorSchema.parse(malformedQuery.json()).error.code,
+        ).toBe("BAD_REQUEST");
+      }
+
+      for (const payload of [
+        {},
+        { coordinates: { latitude: -4.26, longitude: 181 } },
+        { name: "Mise à jour", unexpected: true },
+      ]) {
+        const malformedUpdate = await app.inject({
+          method: "PATCH",
+          url: `/api/v1/admin/pharmacies/${ids.draft}`,
+          headers: {
+            ...contentTypeHeaders(),
+            cookie: administratorCookie,
+            origin: WEB_ORIGIN,
+          },
+          payload,
+        });
+        expect(malformedUpdate.statusCode).toBe(400);
+        expect(
+          adminPharmacyErrorSchema.parse(malformedUpdate.json()).error.code,
+        ).toBe("BAD_REQUEST");
+      }
 
       const missing = await app.inject({
         method: "GET",
