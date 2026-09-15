@@ -9,6 +9,7 @@ overrides:
 
 allowBuilds:
   "@prisma/engines@7.10.0": true
+  argon2: true
   esbuild@0.28.2: true
   prisma@7.10.0: true
 
