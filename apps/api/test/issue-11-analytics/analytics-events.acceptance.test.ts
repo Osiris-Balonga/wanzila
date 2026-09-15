@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { createApp } from "../../src/app.js";
 import type { ApiPrismaClient } from "../../src/infrastructure/prisma.js";
 import { getDisposableTestDatabaseUrl } from "../support/test-database.js";
@@ -18,6 +19,51 @@ const PHARMACY_ID = "00000000-0000-4000-8000-000000002222";
 const ANALYTICS_PATH = "/api/v1/analytics/events";
 const ANALYTICS_BODY_LIMIT_BYTES = 16 * 1024;
 const ANALYTICS_RATE_LIMIT = 2;
+const retentionModule = "../../src/modules/analytics/retention.js";
+
+const acceptedResponseSchema = z
+  .object({
+    data: z
+      .object({ id: z.uuid(), receivedAt: z.string().datetime() })
+      .strict(),
+  })
+  .strict();
+const badRequestResponseSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.literal("BAD_REQUEST"),
+        message: z.literal("Invalid analytics event"),
+      })
+      .strict(),
+  })
+  .strict();
+const payloadTooLargeResponseSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.literal("PAYLOAD_TOO_LARGE"),
+        message: z.literal("Analytics payload too large"),
+      })
+      .strict(),
+  })
+  .strict();
+const rateLimitedResponseSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.literal("RATE_LIMITED"),
+        message: z.literal("Too many analytics events"),
+      })
+      .strict(),
+  })
+  .strict();
+const healthResponseSchema = z
+  .object({ status: z.literal("ok"), service: z.literal("wanzila-api") })
+  .strict();
+const publicProbeResponseSchema = z
+  .object({ status: z.literal("ok") })
+  .strict();
 
 type AnalyticsEventName =
   | "discovery_viewed"
@@ -40,9 +86,15 @@ type AnalyticsEnvelope = {
 type StoredEvent = {
   name: string;
   sessionId: string;
+  pharmacyId: string | null;
   properties: Record<string, unknown>;
   occurredAt: Date;
 };
+
+type RetentionCommand = (options: {
+  prisma: ApiPrismaClient;
+  now: () => Date;
+}) => Promise<void>;
 
 function event(
   name: AnalyticsEventName,
@@ -54,6 +106,42 @@ function event(
     sessionId: SESSION_ID,
     properties,
   };
+}
+
+function expectedStoredEvent(payload: AnalyticsEnvelope): StoredEvent {
+  const { pharmacyId, ...properties } = payload.properties;
+  return {
+    name: payload.name,
+    sessionId: payload.sessionId,
+    pharmacyId: typeof pharmacyId === "string" ? pharmacyId : null,
+    properties,
+    occurredAt: NOW,
+  };
+}
+
+function acceptedResponse(response: unknown) {
+  const parsed = acceptedResponseSchema.parse(response);
+  expect(parsed.data.receivedAt).toBe(NOW.toISOString());
+  return parsed;
+}
+
+function isRetentionModule(
+  candidate: unknown,
+): candidate is { cleanupExpiredAnalyticsEvents: RetentionCommand } {
+  return (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    "cleanupExpiredAnalyticsEvents" in candidate &&
+    typeof candidate.cleanupExpiredAnalyticsEvents === "function"
+  );
+}
+
+async function loadRetentionCommand(): Promise<RetentionCommand> {
+  const candidate: unknown = await import(/* @vite-ignore */ retentionModule);
+  if (!isRetentionModule(candidate)) {
+    throw new Error("Analytics retention command is unavailable.");
+  }
+  return candidate.cleanupExpiredAnalyticsEvents;
 }
 
 const validEvents: readonly AnalyticsEnvelope[] = [
@@ -85,15 +173,15 @@ class AnalyticsPrismaStub {
       this.cleanupCalls.push(argument);
       const cutoff = (argument as { where?: { occurredAt?: { lt?: Date } } })
         .where?.occurredAt?.lt;
-      if (cutoff) {
-        const retained = this.stored.filter(
-          (storedEvent) => storedEvent.occurredAt >= cutoff,
-        );
-        const count = this.stored.length - retained.length;
-        this.stored.splice(0, this.stored.length, ...retained);
-        return Promise.resolve({ count });
+      if (!cutoff) {
+        return Promise.resolve({ count: 0 });
       }
-      return Promise.resolve({ count: 0 });
+      const retained = this.stored.filter(
+        (storedEvent) => storedEvent.occurredAt >= cutoff,
+      );
+      const count = this.stored.length - retained.length;
+      this.stored.splice(0, this.stored.length, ...retained);
+      return Promise.resolve({ count });
     },
   };
 
@@ -111,14 +199,23 @@ describe("issue #11 analytics event ingestion contract", () => {
     await Promise.all(applications.splice(0).map((app) => app.close()));
   });
 
-  async function createAnalyticsApp(options?: { rateLimitMax?: number }) {
+  async function createAnalyticsApp(options?: {
+    analyticsRateLimitMax?: number;
+    rateLimitMax?: number;
+  }) {
     const prisma = new AnalyticsPrismaStub();
-    const app = await createApp({
+    const appOptions: Parameters<typeof createApp>[0] & {
+      analyticsRateLimitMax?: number;
+    } = {
       webOrigin: "http://localhost:5173",
       now: () => NOW,
       prisma: prisma.asPrisma(),
       rateLimitMax: options?.rateLimitMax ?? 120,
-    });
+    };
+    if (options?.analyticsRateLimitMax !== undefined) {
+      appOptions.analyticsRateLimitMax = options.analyticsRateLimitMax;
+    }
+    const app = await createApp(appOptions);
     applications.push(app);
     return { app, prisma };
   }
@@ -135,14 +232,8 @@ describe("issue #11 analytics event ingestion contract", () => {
       });
 
       expect(response.statusCode).toBe(202);
-      expect(prisma.stored).toEqual([
-        {
-          name: payload.name,
-          sessionId: SESSION_ID,
-          properties: payload.properties,
-          occurredAt: NOW,
-        },
-      ]);
+      acceptedResponse(response.json());
+      expect(prisma.stored).toEqual([expectedStoredEvent(payload)]);
     },
   );
 
@@ -217,9 +308,7 @@ describe("issue #11 analytics event ingestion contract", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({
-      error: { code: "BAD_REQUEST", message: "Invalid analytics event" },
-    });
+    badRequestResponseSchema.parse(response.json());
     expect(prisma.stored).toEqual([]);
   });
 
@@ -238,19 +327,28 @@ describe("issue #11 analytics event ingestion contract", () => {
     });
 
     expect(response.statusCode).toBe(413);
-    expect(response.json()).toEqual({
-      error: {
-        code: "PAYLOAD_TOO_LARGE",
-        message: "Analytics payload too large",
-      },
-    });
+    payloadTooLargeResponseSchema.parse(response.json());
     expect(prisma.stored).toEqual([]);
   });
 
-  it("returns a stable 429 envelope after the endpoint limit", async () => {
+  it("limits only analytics traffic and leaves health and public traffic outside its budget", async () => {
     const { app, prisma } = await createAnalyticsApp({
-      rateLimitMax: ANALYTICS_RATE_LIMIT,
+      analyticsRateLimitMax: ANALYTICS_RATE_LIMIT,
     });
+    app.get("/api/v1/public-probe", () => ({ status: "ok" }));
+
+    const healthBefore = await app.inject({
+      method: "GET",
+      url: "/api/v1/health",
+    });
+    expect(healthBefore.statusCode).toBe(200);
+    healthResponseSchema.parse(healthBefore.json());
+    const publicBefore = await app.inject({
+      method: "GET",
+      url: "/api/v1/public-probe",
+    });
+    expect(publicBefore.statusCode).toBe(200);
+    publicProbeResponseSchema.parse(publicBefore.json());
 
     for (let attempt = 0; attempt < ANALYTICS_RATE_LIMIT; attempt += 1) {
       const response = await app.inject({
@@ -259,6 +357,7 @@ describe("issue #11 analytics event ingestion contract", () => {
         payload: event("discovery_viewed", {}),
       });
       expect(response.statusCode).toBe(202);
+      acceptedResponse(response.json());
     }
 
     const limited = await app.inject({
@@ -267,64 +366,73 @@ describe("issue #11 analytics event ingestion contract", () => {
       payload: event("discovery_viewed", {}),
     });
     expect(limited.statusCode).toBe(429);
-    expect(limited.json()).toEqual({
-      error: { code: "RATE_LIMITED", message: "Too many analytics events" },
-    });
+    rateLimitedResponseSchema.parse(limited.json());
     expect(prisma.stored).toHaveLength(ANALYTICS_RATE_LIMIT);
+
+    const healthAfter = await app.inject({
+      method: "GET",
+      url: "/api/v1/health",
+    });
+    expect(healthAfter.statusCode).toBe(200);
+    healthResponseSchema.parse(healthAfter.json());
+    const publicAfter = await app.inject({
+      method: "GET",
+      url: "/api/v1/public-probe",
+    });
+    expect(publicAfter.statusCode).toBe(200);
+    publicProbeResponseSchema.parse(publicAfter.json());
   });
 
-  it("cleans records older than 30 days with an injected clock and remains idempotent", async () => {
+  it("keeps retention cleanup out of ingestion and deletes only records older than 30 days", async () => {
     const { app, prisma } = await createAnalyticsApp();
+    const response = await app.inject({
+      method: "POST",
+      url: ANALYTICS_PATH,
+      payload: event("discovery_viewed", {}),
+    });
+    expect(response.statusCode).toBe(202);
+    acceptedResponse(response.json());
+    expect(prisma.cleanupCalls).toEqual([]);
+
     prisma.stored.push(
       {
         name: "discovery_viewed",
         sessionId: SESSION_ID,
+        pharmacyId: null,
         properties: {},
         occurredAt: new Date("2026-08-16T11:59:59.999Z"),
       },
       {
         name: "discovery_viewed",
         sessionId: SESSION_ID,
+        pharmacyId: null,
         properties: {},
         occurredAt: new Date("2026-08-16T12:00:00.000Z"),
       },
     );
 
-    const first = await app.inject({
-      method: "POST",
-      url: ANALYTICS_PATH,
-      payload: event("discovery_viewed", {}),
+    const cleanupExpiredAnalyticsEvents = await loadRetentionCommand();
+    await cleanupExpiredAnalyticsEvents({
+      prisma: prisma.asPrisma(),
+      now: () => NOW,
     });
-    const second = await app.inject({
-      method: "POST",
-      url: ANALYTICS_PATH,
-      payload: event("discovery_viewed", {}),
+    await cleanupExpiredAnalyticsEvents({
+      prisma: prisma.asPrisma(),
+      now: () => NOW,
     });
 
-    expect(first.statusCode).toBe(202);
-    expect(second.statusCode).toBe(202);
     expect(prisma.cleanupCalls).toEqual([
       { where: { occurredAt: { lt: new Date("2026-08-16T12:00:00.000Z") } } },
       { where: { occurredAt: { lt: new Date("2026-08-16T12:00:00.000Z") } } },
     ]);
     expect(prisma.stored).toEqual([
+      expectedStoredEvent(event("discovery_viewed", {})),
       {
         name: "discovery_viewed",
         sessionId: SESSION_ID,
+        pharmacyId: null,
         properties: {},
         occurredAt: new Date("2026-08-16T12:00:00.000Z"),
-      },
-      {
-        name: "discovery_viewed",
-        sessionId: SESSION_ID,
-        properties: {},
-        occurredAt: NOW,
-      },
-      {
-        name: "discovery_viewed",
-        sessionId: SESSION_ID,
-        properties: {},
-        occurredAt: NOW,
       },
     ]);
   });
@@ -366,7 +474,7 @@ describe.runIf(runMariaDbTests)(
       await app.close();
     });
 
-    it("persists only normalized privacy-bounded data after a 202 response", async () => {
+    it("persists pharmacy correlation only in the indexed column after a 202 response", async () => {
       const response = await app.inject({
         method: "POST",
         url: ANALYTICS_PATH,
@@ -374,6 +482,7 @@ describe.runIf(runMariaDbTests)(
       });
 
       expect(response.statusCode).toBe(202);
+      acceptedResponse(response.json());
       const stored = await prisma.analyticsEvent.findFirstOrThrow({
         where: { name: "route_started" },
       });
@@ -381,9 +490,10 @@ describe.runIf(runMariaDbTests)(
         name: "route_started",
         sessionId: SESSION_ID,
         pharmacyId: PHARMACY_ID,
-        properties: { pharmacyId: PHARMACY_ID },
+        properties: {},
         occurredAt: NOW,
       });
+      expect(stored.properties).not.toHaveProperty("pharmacyId");
       expect(JSON.stringify(stored)).not.toMatch(
         /latitude|longitude|routePoints/i,
       );
