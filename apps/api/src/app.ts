@@ -4,11 +4,16 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import staticFiles from "@fastify/static";
 import fastify from "fastify";
-import type { HealthResponse } from "@wanzila/contracts";
+import { type HealthResponse } from "@wanzila/contracts";
 import {
   createPrismaClient,
   type ApiPrismaClient,
 } from "./infrastructure/prisma.js";
+import {
+  registerAnalyticsRoutes,
+  sendAnalyticsPayloadTooLarge,
+  sendAnalyticsRateLimited,
+} from "./modules/analytics/routes.js";
 import { registerEmergencyContactRoutes } from "./modules/public-api/emergency-contact-routes.js";
 import { registerPublicPharmacyRoutes } from "./modules/public-api/routes.js";
 import { registerAdministratorAuthRoutes } from "./modules/admin-auth/routes.js";
@@ -20,6 +25,11 @@ import {
 } from "./modules/shared/http-errors.js";
 
 const DEFAULT_SOURCE_FRESHNESS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_ANALYTICS_RATE_LIMIT_MAX = 30;
+
+function isAnalyticsEventsRequest(url: string): boolean {
+  return url.split("?")[0]?.endsWith("/analytics/events") ?? false;
+}
 
 function isKnownClientError(error: unknown): error is { statusCode: number } {
   return (
@@ -32,6 +42,21 @@ function isKnownClientError(error: unknown): error is { statusCode: number } {
   );
 }
 
+function statusCodeForClientError(error: unknown): number | undefined {
+  if (isKnownClientError(error)) {
+    return error.statusCode;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "FST_ERR_RATE_LIMIT"
+  ) {
+    return 429;
+  }
+  return undefined;
+}
+
 export interface AppOptions {
   webOrigin: string;
   webRoot?: string;
@@ -41,6 +66,7 @@ export interface AppOptions {
   now?: () => Date;
   sourceFreshnessMaxAgeMs?: number;
   rateLimitMax?: number;
+  analyticsRateLimitMax?: number;
   nodeEnvironment?: "development" | "test" | "production";
   verifyPassword?: AdministratorAuthRouteOptions["verifyPassword"];
 }
@@ -54,11 +80,21 @@ export async function createApp(options: AppOptions) {
   const sourceFreshnessMaxAgeMs =
     options.sourceFreshnessMaxAgeMs ?? DEFAULT_SOURCE_FRESHNESS_MAX_AGE_MS;
   const rateLimitMax = options.rateLimitMax ?? 120;
+  const analyticsRateLimitMax =
+    options.analyticsRateLimitMax ?? DEFAULT_ANALYTICS_RATE_LIMIT_MAX;
   const nodeEnvironment = options.nodeEnvironment ?? "development";
 
   await app.register(helmet);
   await app.register(cookie);
-  await app.register(rateLimit, { max: rateLimitMax, timeWindow: "1 minute" });
+  await app.register(rateLimit, {
+    max: rateLimitMax,
+    timeWindow: "1 minute",
+    errorResponseBuilder: () => {
+      const error = new Error("Rate limit exceeded");
+      Object.assign(error, { statusCode: 429 });
+      return error;
+    },
+  });
   await app.register(cors, {
     origin: options.webOrigin,
     credentials: true,
@@ -83,6 +119,11 @@ export async function createApp(options: AppOptions) {
     app.addHook("onClose", async () => {
       await prisma.$disconnect();
     });
+    registerAnalyticsRoutes(app, {
+      prisma,
+      now,
+      rateLimitMax: analyticsRateLimitMax,
+    });
     await app.register(
       (publicApi) => {
         registerPublicPharmacyRoutes(publicApi, {
@@ -97,8 +138,17 @@ export async function createApp(options: AppOptions) {
   }
 
   app.setErrorHandler((error, request, reply) => {
-    if (isKnownClientError(error)) {
-      return sendClientError(reply, error.statusCode);
+    const statusCode = statusCodeForClientError(error);
+    if (isAnalyticsEventsRequest(request.url)) {
+      if (statusCode === 413) {
+        return sendAnalyticsPayloadTooLarge(reply);
+      }
+      if (statusCode === 429) {
+        return sendAnalyticsRateLimited(reply);
+      }
+    }
+    if (statusCode) {
+      return sendClientError(reply, statusCode);
     }
     request.log.error(error);
     return reply.code(500).send(internalError());
