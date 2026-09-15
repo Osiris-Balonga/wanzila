@@ -12,6 +12,7 @@ import {
 import { registerEmergencyContactRoutes } from "./modules/public-api/emergency-contact-routes.js";
 import { registerPublicPharmacyRoutes } from "./modules/public-api/routes.js";
 import { registerAdministratorAuthRoutes } from "./modules/admin-auth/routes.js";
+import type { AdministratorAuthRouteOptions } from "./modules/admin-auth/routes.js";
 import {
   internalError,
   sendClientError,
@@ -41,6 +42,7 @@ export interface AppOptions {
   sourceFreshnessMaxAgeMs?: number;
   rateLimitMax?: number;
   nodeEnvironment?: "development" | "test" | "production";
+  verifyPassword?: AdministratorAuthRouteOptions["verifyPassword"];
 }
 
 export async function createApp(options: AppOptions) {
@@ -72,6 +74,9 @@ export async function createApp(options: AppOptions) {
     now,
     webOrigin: options.webOrigin,
     nodeEnvironment,
+    ...(options.verifyPassword === undefined
+      ? {}
+      : { verifyPassword: options.verifyPassword }),
   });
 
   if (prisma) {

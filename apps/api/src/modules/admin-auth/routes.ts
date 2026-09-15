@@ -24,11 +24,21 @@ const SESSION_LIFETIME_SECONDS = 12 * 60 * 60;
 const SESSION_LIFETIME_MS = SESSION_LIFETIME_SECONDS * 1000;
 const signOutRequestSchema = z.object({}).strict();
 
+/**
+ * A fixed valid Argon2id hash makes unknown-email failures perform the same
+ * expensive password verification as an existing administrator.
+ */
+export const DUMMY_ADMINISTRATOR_PASSWORD_HASH =
+  "$argon2id$v=19$m=19456,p=1,t=2$3aRFFFJw+4jVZ1qPEcgfRw$qCLmoUBqdJSUW5dAWtOcpIyMrt1+29MqIH5lhcJ2uUY";
+
+type PasswordVerifier = (hash: string, password: string) => Promise<boolean>;
+
 export interface AdministratorAuthRouteOptions {
   prisma: ApiPrismaClient | undefined;
   now: () => Date;
   webOrigin: string;
   nodeEnvironment: "development" | "test" | "production";
+  verifyPassword?: PasswordVerifier;
 }
 
 function sessionCookieOptions(
@@ -55,6 +65,7 @@ export function registerAdministratorAuthRoutes(
   });
   const limitAuthenticationAttempts = createAuthenticationRateLimitPreHandler();
   const cookieOptions = sessionCookieOptions(options.nodeEnvironment);
+  const verifyPassword = options.verifyPassword ?? argon2.verify;
 
   app.post(
     "/api/v1/admin/auth/sign-in",
@@ -75,15 +86,11 @@ export function registerAdministratorAuthRoutes(
       const administrator = await options.prisma.adminUser.findUnique({
         where: { email: input.data.email },
       });
-      if (!administrator) {
-        return sendAuthenticationFailed(reply);
-      }
-
-      const passwordIsValid = await argon2.verify(
-        administrator.passwordHash,
+      const passwordIsValid = await verifyPassword(
+        administrator?.passwordHash ?? DUMMY_ADMINISTRATOR_PASSWORD_HASH,
         input.data.password,
       );
-      if (!passwordIsValid) {
+      if (!administrator || !passwordIsValid) {
         return sendAuthenticationFailed(reply);
       }
 
