@@ -11,7 +11,8 @@ export async function GET() {
     const current = data.current
     if (!Number.isFinite(current?.temperature_2m) || !Number.isFinite(current?.weather_code)) throw new Error('Invalid weather data')
     return NextResponse.json({ temperature: Math.round(current.temperature_2m), code: current.weather_code, isDay: current.is_day === 1 })
-  } catch {
+  } catch (error) {
+    console.error('Could not fetch Brazzaville weather:', error)
     return NextResponse.json({ temperature: null, code: null, isDay: null }, { status: 503 })
   }
 }
