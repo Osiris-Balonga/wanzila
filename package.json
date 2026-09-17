@@ -6,6 +6,7 @@
     "dev": "concurrently -k \"next dev -p 3100 -H 0.0.0.0\" \"json-server db.json --port 3101 --host 127.0.0.1\"",
     "build": "next build",
     "start": "next start -p 3100 -H 0.0.0.0",
+    "start:render": "node scripts/start-render.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

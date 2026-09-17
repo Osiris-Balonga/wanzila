@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: wanzila-app
+    runtime: node
+    repo: https://github.com/Osiris-Balonga/wanzila
+    branch: main
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:render
+    autoDeployTrigger: commit
