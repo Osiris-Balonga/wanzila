@@ -1,12 +1,18 @@
-import Image from 'next/image'
+import { MapSkeleton, PharmacyListSkeleton } from '@/components/wanzila/LoadingStates'
 
 export default function Loading() {
-  return (
-    <div className="grid min-h-screen place-items-center bg-white px-4">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <Image src="/brand-app-icon.png" width={72} height={72} alt="Wanzila" priority />
-        <p className="text-sm text-slate-600">Chargement de la carte…</p>
-      </div>
+  return <div className="app-shell-skeleton">
+    <aside className="app-shell-skeleton__rail" aria-hidden="true">
+      <span className="skeleton-block app-shell-skeleton__logo" />
+      <span className="skeleton-block app-shell-skeleton__nav" />
+      <span className="skeleton-block app-shell-skeleton__nav" />
+      <span className="skeleton-block app-shell-skeleton__nav" />
+    </aside>
+    <section className="app-shell-skeleton__panel">
+      <span className="skeleton-block app-shell-skeleton__search" aria-hidden="true" />
+      <span className="skeleton-block app-shell-skeleton__heading" aria-hidden="true" />
+      <PharmacyListSkeleton />
+    </section>
+    <MapSkeleton className="app-shell-skeleton__map" />
     </div>
-  )
 }

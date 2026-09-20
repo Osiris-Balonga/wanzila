@@ -1,17 +1,25 @@
-import type { Pharmacy, SearchFilters } from '@/types/database'
+import type { DutyPeriod, Pharmacy, SearchFilters } from '@/types/database'
 
 export async function loadPharmacies(): Promise<Pharmacy[]> {
-  const response = await fetch('/data/pharmacies', { cache: 'no-store' })
-  if (!response.ok) throw new Error('Impossible de charger les pharmacies. Réessayez plus tard.')
-  const data: unknown = await response.json()
-  if (!Array.isArray(data)) throw new Error('Les données des pharmacies sont invalides.')
-  return data as Pharmacy[]
+  const [baseResponse, dutyResponse] = await Promise.all([
+    fetch('/data/pharmacies', { cache: 'no-store' }),
+    fetch('/data/on-duty-pharmacies.json', { cache: 'no-store' }),
+  ])
+  if (!baseResponse.ok || !dutyResponse.ok) throw new Error('Impossible de charger les pharmacies. Réessayez plus tard.')
+  const [base, duty]: unknown[] = await Promise.all([baseResponse.json(), dutyResponse.json()])
+  if (!Array.isArray(base) || !Array.isArray(duty)) throw new Error('Les données des pharmacies sont invalides.')
+  const byId = new Map((base as Pharmacy[]).map(pharmacy => [pharmacy.id, pharmacy]))
+  for (const pharmacy of duty as Pharmacy[]) byId.set(pharmacy.id, { ...byId.get(pharmacy.id), ...pharmacy })
+  return [...byId.values()]
+}
+
+export function getActiveDutyPeriod(pharmacy: Pharmacy, at = new Date()): DutyPeriod | undefined {
+  if (pharmacy.duty_status !== 'confirmed') return undefined
+  return pharmacy.duty_periods.find(period => new Date(period.starts_at) <= at && at < new Date(period.ends_at))
 }
 
 export function isOnDuty(pharmacy: Pharmacy, at = new Date()): boolean {
-  return pharmacy.duty_status === 'confirmed' && pharmacy.duty_periods.some(
-    period => new Date(period.starts_at) <= at && at < new Date(period.ends_at)
-  )
+  return Boolean(getActiveDutyPeriod(pharmacy, at))
 }
 
 export function getAvailability(pharmacy: Pharmacy, at = new Date()): 'open' | 'closed' | 'unknown' {
