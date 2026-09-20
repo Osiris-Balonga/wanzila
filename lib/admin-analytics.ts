@@ -111,6 +111,8 @@ export { percentageChange }
 
 type UmamiMetric = { x: string; y: number }
 type UmamiSeriesPoint = { x?: string; t?: string; y: number }
+type UmamiShare = { token: string; websiteId: string }
+type UmamiClient = { baseUrl: string; headers: Record<string, string>; websiteId: string }
 
 function dateRange(periodDays: number, offsetDays = 0) {
   const end = new Date()
@@ -122,14 +124,59 @@ function dateRange(periodDays: number, offsetDays = 0) {
   return { startAt: start.getTime(), endAt: end.getTime() }
 }
 
-async function umamiFetch<T>(path: string, params: Record<string, string | number>) {
+function getShareSlug(value: string) {
+  try {
+    const pathname = new URL(value).pathname
+    return pathname.split('/').filter(Boolean).at(-1) ?? ''
+  } catch {
+    return value.trim().replace(/^\/+|\/+$/g, '')
+  }
+}
+
+async function getUmamiClient(): Promise<UmamiClient> {
   const apiKey = process.env.UMAMI_API_KEY
-  if (!apiKey) throw new Error('Missing UMAMI_API_KEY')
-  const baseUrl = process.env.UMAMI_API_BASE_URL || 'https://api.umami.is/v1'
-  const url = new URL(`${baseUrl.replace(/\/$/, '')}${path}`)
+  const configuredWebsiteId = process.env.UMAMI_WEBSITE_ID || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+
+  if (apiKey) {
+    if (!configuredWebsiteId) throw new Error('Missing UMAMI_WEBSITE_ID')
+    return {
+      baseUrl: process.env.UMAMI_API_BASE_URL || 'https://api.umami.is/v1',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
+      websiteId: configuredWebsiteId,
+    }
+  }
+
+  const shareUrl = process.env.UMAMI_SHARE_URL
+  if (!shareUrl) throw new Error('Missing Umami read credentials')
+  const slug = getShareSlug(shareUrl)
+  if (!slug) throw new Error('Invalid UMAMI_SHARE_URL')
+
+  const cloudOrigin = shareUrl.startsWith('http') ? new URL(shareUrl).origin : 'https://cloud.umami.is'
+  const baseUrl = `${cloudOrigin}/api`
+  const response = await fetch(`${baseUrl}/share/${encodeURIComponent(slug)}`, {
+    headers: { Accept: 'application/json' },
+    next: { revalidate: 300 },
+  })
+  if (!response.ok) throw new Error(`Umami share request failed with ${response.status}`)
+  const share = await response.json() as UmamiShare
+  if (!share.token || !share.websiteId) throw new Error('Invalid Umami share response')
+
+  return {
+    baseUrl,
+    headers: {
+      Accept: 'application/json',
+      'x-umami-share-token': share.token,
+      'x-umami-share-context': '1',
+    },
+    websiteId: share.websiteId,
+  }
+}
+
+async function umamiFetch<T>(client: UmamiClient, path: string, params: Record<string, string | number>) {
+  const url = new URL(`${client.baseUrl.replace(/\/$/, '')}${path}`)
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)))
   const response = await fetch(url, {
-    headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
+    headers: client.headers,
     next: { revalidate: 300 },
   })
   if (!response.ok) throw new Error(`Umami request failed with ${response.status}`)
@@ -175,20 +222,20 @@ function buildTrend(series: UmamiSeriesPoint[], periodDays: number): TrendPoint[
 }
 
 export async function getAdminAnalytics(periodDays = 30): Promise<AdminAnalytics> {
-  const websiteId = process.env.UMAMI_WEBSITE_ID || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || 'f94a028b-83b4-4f9b-b922-c6924617cce2'
-  if (!process.env.UMAMI_API_KEY) {
+  if (!process.env.UMAMI_API_KEY && !process.env.UMAMI_SHARE_URL) {
     return process.env.NODE_ENV === 'production'
-      ? unavailableData(periodDays, 'La clé de lecture Umami n’est pas configurée.')
+      ? unavailableData(periodDays, 'L’accès en lecture à Umami n’est pas configuré.')
       : demoData(periodDays)
   }
   try {
+    const client = await getUmamiClient()
     const current = dateRange(periodDays)
     const previous = dateRange(periodDays, periodDays)
     const [metrics, previousMetrics, series, devices] = await Promise.all([
-      umamiFetch<UmamiMetric[]>(`/websites/${websiteId}/metrics`, { ...current, type: 'event' }),
-      umamiFetch<UmamiMetric[]>(`/websites/${websiteId}/metrics`, { ...previous, type: 'event' }),
-      umamiFetch<UmamiSeriesPoint[]>(`/websites/${websiteId}/events/series`, current),
-      umamiFetch<UmamiMetric[]>(`/websites/${websiteId}/metrics`, { ...current, type: 'device' }),
+      umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...current, type: 'event' }),
+      umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...previous, type: 'event' }),
+      umamiFetch<UmamiSeriesPoint[]>(client, `/websites/${client.websiteId}/events/series`, current),
+      umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...current, type: 'device' }),
     ])
     const totals = totalsFromMetrics(metrics)
     const trend = buildTrend(series, periodDays)
