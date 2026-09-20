@@ -10,7 +10,7 @@ import { PharmacyDetails, type RouteState } from '@/components/wanzila/PharmacyD
 import { DataErrorState, MapSkeleton, PharmacyListSkeleton } from '@/components/wanzila/LoadingStates'
 import { PharmacyRow } from '@/components/wanzila/PharmacyRow'
 import { filterPharmacies, hasCoordinates, loadPharmacies } from '@/lib/pharmacies'
-import { trackEvent } from '@/lib/analytics'
+import { createAnalyticsId, trackEvent } from '@/lib/analytics'
 import { EMERGENCY_CONTACT } from '@/lib/constants'
 import type { Pharmacy, SearchFilters } from '@/types/database'
 import type { RouteInfo } from '@/types/route'
@@ -108,12 +108,27 @@ export default function HomePage() {
   const currentViewport = useRef<{ center: [number, number]; zoom: number } | null>(null)
   const viewBeforeSelection = useRef<{ center: [number, number]; zoom: number } | null>(null)
   const trackedSearch = useRef('')
+  const activeSearchId = useRef<string | null>(null)
   const trackViewport = useCallback((view: { center: [number, number]; zoom: number }) => { currentViewport.current = view }, [])
   const fetchPharmacyData = useCallback(() => {
     setLoading(true)
     setLoadError(null)
     loadPharmacies()
-      .then(setPharmacies)
+      .then(data => {
+        setPharmacies(data)
+        const verificationDates = data.flatMap(pharmacy => [
+          pharmacy.place_verified_at,
+          ...pharmacy.duty_periods.map(period => period.verified_at),
+        ]).filter((value): value is string => Boolean(value)).map(value => new Date(value).getTime()).filter(Number.isFinite)
+        const latestVerification = verificationDates.length ? Math.max(...verificationDates) : null
+        trackEvent('data_snapshot_loaded', {
+          pharmacy_count: data.length,
+          located_count: data.filter(hasCoordinates).length,
+          confirmed_duty_count: data.filter(pharmacy => pharmacy.duty_status === 'confirmed').length,
+          latest_verification_at: latestVerification ? new Date(latestVerification).toISOString() : 'unknown',
+          data_age_hours: latestVerification ? Math.max(0, Math.round((Date.now() - latestVerification) / 3_600_000)) : -1,
+        })
+      })
       .catch(error => setLoadError(error instanceof Error ? error.message : 'Une erreur inattendue est survenue.'))
       .finally(() => setLoading(false))
   }, [])
@@ -161,7 +176,14 @@ export default function HomePage() {
     if (query === trackedSearch.current) return
     const timer = window.setTimeout(() => {
       trackedSearch.current = query
-      trackEvent('search_performed', { query_length: query.length, result_count: visible.length })
+      activeSearchId.current = createAnalyticsId()
+      trackEvent('search_performed', {
+        search_id: activeSearchId.current,
+        search_type: 'text',
+        query_length: query.length,
+        result_count: visible.length,
+        category: filters.category,
+      })
     }, 650)
     return () => window.clearTimeout(timer)
   }, [filters.query, visible.length])
@@ -176,6 +198,12 @@ export default function HomePage() {
 
   const openPharmacy = useCallback((pharmacy: Pharmacy) => {
     clearRoute()
+    trackEvent('pharmacy_viewed', {
+      pharmacy_id: pharmacy.id,
+      on_duty: pharmacy.duty_status === 'confirmed',
+      source: activeSearchId.current ? 'search' : 'browse',
+      ...(activeSearchId.current ? { search_id: activeSearchId.current } : {}),
+    })
     viewBeforeSelection.current = currentViewport.current
     setRestoreView(null)
     setSelected(pharmacy)
@@ -192,6 +220,8 @@ export default function HomePage() {
 
   const resetFilters = () => {
     clearRoute()
+    activeSearchId.current = null
+    trackedSearch.current = ''
     setFilters(DEFAULT_FILTERS)
     setRestoreView(null)
     setSelected(null)
@@ -202,6 +232,18 @@ export default function HomePage() {
 
   const changeFilters = (next: SearchFilters) => {
     setRestoreView(null)
+    if (next.query !== filters.query) activeSearchId.current = null
+    else if (next.category !== filters.category || next.availability !== filters.availability || next.neighborhood !== filters.neighborhood || next.borough !== filters.borough) {
+      activeSearchId.current = createAnalyticsId()
+      trackEvent('search_performed', {
+        search_id: activeSearchId.current,
+        search_type: 'filter',
+        result_count: filterPharmacies(pharmacies, next).length,
+        category: next.category,
+        availability: next.availability || 'all',
+        area_filter: Boolean(next.neighborhood || next.borough),
+      })
+    }
     setFilters(next)
   }
 
@@ -258,11 +300,21 @@ export default function HomePage() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  const toggleSaved = (id: string) => setSavedIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id])
+  const toggleSaved = (id: string) => setSavedIds(current => {
+    const saved = !current.includes(id)
+    trackEvent('pharmacy_save_changed', { pharmacy_id: id, saved })
+    return saved ? [...current, id] : current.filter(item => item !== id)
+  })
 
   const startRoute = useCallback(async (pharmacy: Pharmacy) => {
     if (!hasCoordinates(pharmacy)) return
-    trackEvent('route_started', { pharmacy_id: pharmacy.id, on_duty: pharmacy.duty_status === 'confirmed' })
+    const searchId = activeSearchId.current
+    trackEvent('route_started', {
+      pharmacy_id: pharmacy.id,
+      on_duty: pharmacy.duty_status === 'confirmed',
+      source: searchId ? 'search' : 'browse',
+      ...(searchId ? { search_id: searchId } : {}),
+    })
     if (!viewBeforeSelection.current) viewBeforeSelection.current = currentViewport.current
     const requestId = ++requestRef.current
     setSelected(pharmacy)
@@ -289,10 +341,21 @@ export default function HomePage() {
       if (requestId !== requestRef.current) return
       setRoute({ distance: result.distance, duration: result.duration, coordinates: coordinates.map(([longitude, latitude]: [number, number]) => [latitude, longitude]) })
       setRouteState({ status: 'ready' })
+      trackEvent('route_ready', {
+        pharmacy_id: pharmacy.id,
+        distance_km: Number((result.distance / 1000).toFixed(1)),
+        duration_minutes: Math.max(1, Math.round(result.duration / 60)),
+        ...(searchId ? { search_id: searchId } : {}),
+      })
     } catch (error) {
       if (requestId !== requestRef.current) return
       setRoute(null)
       const isLocationError = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'number'
+      trackEvent('route_failed', {
+        pharmacy_id: pharmacy.id,
+        reason: isLocationError ? 'location_unavailable' : 'routing_unavailable',
+        ...(searchId ? { search_id: searchId } : {}),
+      })
       setRouteState({ status: 'error', message: isLocationError ? 'Position indisponible. Autorisez la géolocalisation puis réessayez.' : error instanceof Error ? error.message : 'Le trajet n’a pas pu être calculé.' })
     }
   }, [])

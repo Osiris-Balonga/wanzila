@@ -35,7 +35,7 @@ The existing navigation and map controls include a direct `tel:112` action label
 
 ## Product metrics
 
-The client sends four allowlisted, privacy-minimised events to `/api/analytics`: `search_performed`, `route_started`, `pharmacy_call_started`, and `emergency_call_started`. Search text and user location are never included. The API writes structured `wanzila_metric` records to server logs, which can be aggregated into searches per day and search-to-route conversion. Data freshness and coverage come from `npm run data:quality`; no public KPI dashboard is added.
+The production client uses Umami Cloud for anonymous page views and a small allowlist of privacy-minimised product events. Search text, phone numbers, and user location are never sent. `search_performed` and `route_started` share an anonymous `search_id`, which supports a search-to-route funnel; `data_snapshot_loaded` supplies freshness and coverage properties. The same events are also posted to `/api/analytics` as structured `wanzila_metric` server logs for operational fallback. The Umami tracker is restricted to `wanzila-app.onrender.com`, excludes URL search parameters, and respects Do Not Track. Data quality can also be checked locally with `npm run data:quality`; no public KPI dashboard is added to the product interface.
 
 ## Other behaviour and limits
 

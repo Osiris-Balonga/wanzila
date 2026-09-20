@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import "./globals.css"
 import "./wanzila.css"
+
+const UMAMI_WEBSITE_ID = "f94a028b-83b4-4f9b-b922-c6924617cce2"
 
 export const metadata: Metadata = {
   title: "Wanzila — Pharmacies à Brazzaville",
@@ -25,6 +28,14 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className="font-sans">
+        <Script
+          src="https://cloud.umami.is/script.js"
+          data-website-id={UMAMI_WEBSITE_ID}
+          data-domains="wanzila-app.onrender.com"
+          data-exclude-search="true"
+          data-do-not-track="true"
+          strategy="afterInteractive"
+        />
         {children}
       </body>
     </html>
