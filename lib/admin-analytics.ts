@@ -238,7 +238,10 @@ export async function getAdminAnalytics(periodDays = 30): Promise<AdminAnalytics
     const [metrics, previousMetrics, series, devices] = await Promise.all([
       umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...current, type: 'event' }),
       umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...previous, type: 'event' }),
-      umamiFetch<UmamiSeriesPoint[]>(client, `/websites/${client.websiteId}/events/series`, current),
+      umamiFetch<UmamiSeriesPoint[]>(client, `/websites/${client.websiteId}/events/series`, {
+        ...current,
+        timezone: process.env.UMAMI_TIMEZONE || 'Africa/Brazzaville',
+      }),
       umamiFetch<UmamiMetric[]>(client, `/websites/${client.websiteId}/metrics`, { ...current, type: 'device' }),
     ])
     const totals = totalsFromMetrics(metrics)
