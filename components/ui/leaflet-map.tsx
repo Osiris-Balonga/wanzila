@@ -28,7 +28,7 @@ function MapCamera({ route, pharmacies, resetKey, restoreView }: Pick<MapProps, 
     } else if (route?.coordinates && route.coordinates.length > 1) {
       const mobile = map.getSize().x < 720
       map.fitBounds(L.latLngBounds(route.coordinates), mobile
-        ? { paddingTopLeft: [30, 125], paddingBottomRight: [30, Math.min(405, Math.max(185, map.getSize().y - 190))], maxZoom: 15 }
+        ? { paddingTopLeft: [30, 125], paddingBottomRight: [30, 130], maxZoom: 15 }
         : { padding: [56, 56], maxZoom: 16 })
     } else {
       const points = pharmacies.filter(hasCoordinates)
