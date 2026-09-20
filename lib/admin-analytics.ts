@@ -151,8 +151,12 @@ async function getUmamiClient(): Promise<UmamiClient> {
   const slug = getShareSlug(shareUrl)
   if (!slug) throw new Error('Invalid UMAMI_SHARE_URL')
 
-  const cloudOrigin = shareUrl.startsWith('http') ? new URL(shareUrl).origin : 'https://cloud.umami.is'
-  const baseUrl = `${cloudOrigin}/api`
+  const parsedShareUrl = shareUrl.startsWith('http')
+    ? new URL(shareUrl)
+    : new URL(`/share/${slug}`, 'https://cloud.umami.is')
+  const sharePathIndex = parsedShareUrl.pathname.lastIndexOf('/share/')
+  const cloudBasePath = sharePathIndex >= 0 ? parsedShareUrl.pathname.slice(0, sharePathIndex) : ''
+  const baseUrl = `${parsedShareUrl.origin}${cloudBasePath}/api`
   const response = await fetch(`${baseUrl}/share/${encodeURIComponent(slug)}`, {
     headers: { Accept: 'application/json' },
     next: { revalidate: 300 },
