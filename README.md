@@ -8,6 +8,8 @@ Définissez `ADMIN_SESSION_SECRET` avec une valeur aléatoire longue en producti
 
 Wanzila is a map-first directory for pharmacies in Brazzaville. Desktop uses a navigation rail and a results panel; mobile keeps the map central and opens pharmacy details in a bottom sheet.
 
+The interactive map is powered by [Leaflet](https://leafletjs.com/) under its BSD 2-Clause license. Tile-provider attribution remains visible directly on the map.
+
 ## Local development
 
 ```bash
