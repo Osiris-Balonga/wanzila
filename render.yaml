@@ -16,3 +16,5 @@ services:
         value: f94a028b-83b4-4f9b-b922-c6924617cce2
       - key: UMAMI_API_KEY
         sync: false
+      - key: UMAMI_SHARE_URL
+        sync: false
