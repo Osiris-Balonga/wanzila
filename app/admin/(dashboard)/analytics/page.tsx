@@ -2,6 +2,7 @@ import { Bookmark, CheckCircle2, Navigation, Phone, Search, TrendingUp } from 'l
 import { ConversionFunnel } from '@/components/admin/AdminCharts'
 import { AdminTrendChart } from '@/components/admin/AdminTrendChart'
 import { PeriodSelector } from '@/components/admin/PeriodSelector'
+import { RefreshAnalyticsButton } from '@/components/admin/RefreshAnalyticsButton'
 import { getAdminAnalytics, percentageChange } from '@/lib/admin-analytics'
 
 function clampPeriod(raw?: string) {
@@ -29,7 +30,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const deviceTotal = analytics.devices.reduce((total, device) => total + device.value, 0)
   return (
     <div className="admin-page">
-      <header className="admin-page-header"><div><h1>Analytique</h1><p>Comprendre l’usage et les parcours dans Wanzila</p></div><div className="admin-page-header__actions"><PeriodSelector value={period} /></div></header>
+      <header className="admin-page-header"><div><h1>Analytique</h1><p>Comprendre l’usage et les parcours dans Wanzila</p></div><div className="admin-page-header__actions"><RefreshAnalyticsButton /><PeriodSelector value={period} /></div></header>
 
       <section className="admin-kpis" aria-label="Indicateurs analytiques">{metrics.map(({ label, value, previous, icon: Icon, success }) => { const delta = percentageChange(value, previous); return <article key={label}><span className={`admin-kpi-icon${success ? ' is-success' : ''}`}><Icon /></span><div><span className="admin-kpi-value"><strong>{value.toLocaleString('fr-FR')}</strong><small className={delta >= 0 ? 'is-positive' : 'is-negative'}><TrendingUp size={14} /> {delta >= 0 ? '+' : ''}{delta} %</small></span><p>{label}</p></div></article> })}</section>
 

@@ -13,7 +13,8 @@ export interface MapProps {
   className?: string
   onMarkerClick?: (pharmacy: Pharmacy) => void
   focusPharmacy?: Pharmacy | null
-  tileStyle?: 'standard' | 'humanitarian'
+  tileStyle?: 'clean' | 'roadmap' | 'satellite'
+  layoutKey?: string | number | boolean
   resetKey?: number
   restoreView?: { center: [number, number]; zoom: number; key: number } | null
   onViewportChange?: (view: { center: [number, number]; zoom: number }) => void

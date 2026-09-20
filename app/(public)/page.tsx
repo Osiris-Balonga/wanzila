@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import Image from 'next/image'
-import { Bookmark, Layers2, MapPin, Navigation, RotateCcw, Search, SlidersHorizontal, X, PlusCircle, Clock3, Siren } from 'lucide-react'
+import { Bookmark, Clock3, Layers2, MapPin, Navigation, PanelLeft, PlusCircle, RotateCcw, Search, Siren, SlidersHorizontal, X } from 'lucide-react'
 import { Map } from '@/components/ui/map'
 import { CityWeather } from '@/components/wanzila/CityWeather'
 import { PharmacyDetails, type RouteState } from '@/components/wanzila/PharmacyDetails'
 import { DataErrorState, MapSkeleton, PharmacyListSkeleton } from '@/components/wanzila/LoadingStates'
 import { PharmacyRow } from '@/components/wanzila/PharmacyRow'
+import { AppSplash } from '@/components/wanzila/AppSplash'
 import { filterPharmacies, hasCoordinates, loadPharmacies } from '@/lib/pharmacies'
 import { createAnalyticsId, trackEvent } from '@/lib/analytics'
 import { EMERGENCY_CONTACT } from '@/lib/constants'
@@ -17,8 +18,9 @@ import type { RouteInfo } from '@/types/route'
 
 type Tab = 'map' | 'saved' | 'contribute'
 type SheetSize = 'peek' | 'full'
+type TileStyle = 'clean' | 'roadmap' | 'satellite'
 const STORAGE_KEY = 'wanzila:saved:v1'
-const DEFAULT_FILTERS: SearchFilters = { query: '', category: 'on_duty', availability: 'all' }
+const DEFAULT_FILTERS: SearchFilters = { query: '', category: 'all', availability: 'all' }
 
 const tabs: { id: Tab; label: string; Icon: typeof MapPin }[] = [
   { id: 'map', label: 'Carte', Icon: MapPin },
@@ -58,7 +60,7 @@ function SearchControls({ filters, onChange, onReset, pharmacies, mobile = false
     </label>
     <div ref={filterStripRef} className={`filter-strip${mobile ? ` filter-strip--mobile${filterEdges.atStart ? ' is-at-start' : ''}${filterEdges.atEnd ? ' is-at-end' : ''}` : ''}`} aria-label="Filtres de recherche" onScroll={updateFilterEdges}>
       {(filters.query || filters.category !== DEFAULT_FILTERS.category || filters.availability !== 'all' || filters.neighborhood || filters.borough) && <button className="filter-chip filter-chip--reset" onClick={onReset}><RotateCcw size={14} /> Réinitialiser</button>}
-      <label className="filter-chip filter-chip--select"><SlidersHorizontal size={15} /><span className="sr-only">Type de pharmacie</span><select aria-label="Type de pharmacie" value={filters.category} onChange={event => onChange({ ...filters, category: event.target.value as SearchFilters['category'] })}><option value="on_duty">De garde aujourd’hui</option><option value="night_pharmacy">De nuit</option><option value="all">Toutes</option><option value="pharmacy">Classiques</option></select></label>
+      <label className="filter-chip filter-chip--select"><SlidersHorizontal size={15} /><span className="sr-only">Type de pharmacie</span><select aria-label="Type de pharmacie" value={filters.category} onChange={event => onChange({ ...filters, category: event.target.value as SearchFilters['category'] })}><option value="all">Tous les types</option><option value="on_duty">De garde aujourd’hui</option><option value="night_pharmacy">De nuit</option><option value="pharmacy">Classiques</option></select></label>
       <label className="filter-chip filter-chip--select"><Clock3 size={15} /><span className="sr-only">Disponibilité</span><select aria-label="Disponibilité" value={filters.availability || 'all'} onChange={event => onChange({ ...filters, availability: event.target.value as SearchFilters['availability'] })}><option value="all">Tous les statuts</option><option value="open">Ouvertes</option><option value="closed">Fermées</option><option value="unknown">À confirmer</option></select></label>
       <label className="filter-chip filter-chip--select"><MapPin size={15} /><span className="sr-only">Quartier</span><select value={filters.neighborhood || ''} onChange={event => onChange({ ...filters, neighborhood: event.target.value })}><option value="">Quartier</option>{neighborhoods.map(value => <option key={value}>{value}</option>)}</select></label>
       <label className="filter-chip filter-chip--select"><span className="sr-only">Arrondissement</span><select value={filters.borough || ''} onChange={event => onChange({ ...filters, borough: event.target.value })}><option value="">Arrondissement</option>{boroughs.map(value => <option key={value}>{value}</option>)}</select></label>
@@ -83,6 +85,31 @@ function ContributeState({ onClose }: { onClose?: () => void }) {
   </div>
 }
 
+const tileOptions: { id: TileStyle; label: string; description: string; preview: string }[] = [
+  { id: 'clean', label: 'Carte claire', description: 'Lecture simplifiée', preview: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/13/4192/4443' },
+  { id: 'roadmap', label: 'Carte routière', description: 'Google Maps', preview: 'https://mt0.google.com/vt/lyrs=m&x=4443&y=4192&z=13' },
+  { id: 'satellite', label: 'Satellite', description: 'Vue aérienne', preview: 'https://mt0.google.com/vt/lyrs=s&x=4443&y=4192&z=13' },
+]
+
+function TilePicker({ value, onChange, onClose }: { value: TileStyle; onChange: (value: TileStyle) => void; onClose: () => void }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+  return <div className="tile-picker-backdrop" role="presentation" onPointerDown={event => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="tile-picker" role="dialog" aria-modal="true" aria-labelledby="tile-picker-title">
+      <header><h2 id="tile-picker-title">Type de carte</h2><button className="icon-button" onClick={onClose} aria-label="Fermer le choix de carte"><X size={20} /></button></header>
+      <div className="tile-picker__options">
+        {tileOptions.map(option => <button key={option.id} className={value === option.id ? 'is-selected' : ''} onClick={() => { onChange(option.id); onClose() }} aria-pressed={value === option.id}>
+          <span className="tile-picker__preview"><img src={option.preview} alt="" /></span>
+          <strong>{option.label}</strong><small>{option.description}</small>
+        </button>)}
+      </div>
+    </section>
+  </div>
+}
+
 export default function HomePage() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,7 +121,9 @@ export default function HomePage() {
   const [sheetDragHeight, setSheetDragHeight] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<string[]>([])
   const [storageReady, setStorageReady] = useState(false)
-  const [tileStyle, setTileStyle] = useState<'standard' | 'humanitarian'>('standard')
+  const [tileStyle, setTileStyle] = useState<TileStyle>('roadmap')
+  const [tilePickerOpen, setTilePickerOpen] = useState(false)
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [mapReset, setMapReset] = useState(0)
   const [restoreView, setRestoreView] = useState<{ center: [number, number]; zoom: number; key: number } | null>(null)
   const [route, setRoute] = useState<RouteInfo | null>(null)
@@ -207,6 +236,7 @@ export default function HomePage() {
     viewBeforeSelection.current = currentViewport.current
     setRestoreView(null)
     setSelected(pharmacy)
+    setPanelCollapsed(false)
     setSheetSize('peek')
     setTab('map')
   }, [clearRoute])
@@ -252,6 +282,7 @@ export default function HomePage() {
     setSelected(null)
     setRestoreView(null)
     setTab(next)
+    if (next !== 'map') setPanelCollapsed(false)
     setSheetSize('peek')
   }
 
@@ -367,26 +398,29 @@ export default function HomePage() {
   const listTitle = tab === 'saved' ? 'Mes pharmacies enregistrées' : filters.category === 'on_duty' ? 'Pharmacies de garde aujourd’hui' : 'Pharmacies à Brazzaville'
   const sheetOpen = Boolean(selected) || tab !== 'map'
 
-  return <div className="wanzila-app">
+  return <div className={`wanzila-app${panelCollapsed ? ' is-panel-collapsed' : ''}`}>
+    <AppSplash />
     <nav className="desktop-rail" aria-label="Navigation principale">
-      <div className="brand"><Image className="brand__image" src="/brand-app-icon.png" width={50} height={50} alt="Logo Wanzila" priority /><strong>Wanzila</strong></div>
+      <button className="desktop-rail__panel-toggle desktop-rail__panel-toggle--primary" onClick={() => setPanelCollapsed(value => !value)} aria-expanded={!panelCollapsed} aria-controls="desktop-pharmacy-panel" title={panelCollapsed ? 'Afficher le panneau' : 'Masquer le panneau'}><PanelLeft size={23} /><span>Panneau</span></button>
       <div className="desktop-rail__tabs">{tabs.map(({ id, label, Icon }) => <button key={id} className={tab === id ? 'is-active' : ''} onClick={() => selectTab(id)} aria-current={tab === id ? 'page' : undefined}><Icon size={21} fill={id === 'saved' && tab === id ? 'currentColor' : 'none'} /><span>{label}</span></button>)}</div>
       <a className="desktop-rail__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`}><Siren size={20} /><span>Urgence<br />{EMERGENCY_CONTACT.number}</span></a>
       <span className="desktop-rail__city"><MapPin size={15} /> Brazzaville</span>
     </nav>
 
-    <aside className="desktop-panel" aria-label={selected ? 'Fiche pharmacie' : listTitle}>
+    <aside id="desktop-pharmacy-panel" className="desktop-panel" aria-label={selected ? 'Fiche pharmacie' : listTitle} aria-hidden={panelCollapsed} inert={panelCollapsed ? true : undefined}>
       {selected && tab === 'map' ? <div className="desktop-panel__inner">{details}</div>
         : tab === 'contribute' ? <div className="desktop-panel__inner"><ContributeState /></div>
           : <><div className="desktop-panel__head"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} /><div className="panel-heading"><div><h1>{listTitle}</h1>{loading ? <span className="skeleton-block panel-heading__skeleton" aria-hidden="true" /> : <p>{tab === 'saved' ? `${saved.length} pharmacie${saved.length > 1 ? 's' : ''} enregistrée${saved.length > 1 ? 's' : ''} sur cet appareil` : `${visible.length} pharmacie${visible.length > 1 ? 's' : ''} · ${visible.filter(hasCoordinates).length} sur la carte`}</p>}</div></div></div><div className="desktop-panel__list">{loading && <PharmacyListSkeleton />}{loadError && <DataErrorState message={loadError} onRetry={fetchPharmacyData} />}{!loading && !loadError && list.length === 0 && <EmptyState kind={tab === 'saved' ? 'saved' : 'search'} />}{!loading && !loadError && list.map(pharmacy => <PharmacyRow key={pharmacy.id} pharmacy={pharmacy} saved={savedIds.includes(pharmacy.id)} onOpen={() => openPharmacy(pharmacy)} onSave={() => toggleSaved(pharmacy.id)} onRoute={() => startRoute(pharmacy)} />)}</div></>}
     </aside>
 
     <main className="map-stage" aria-label="Carte des pharmacies de Brazzaville">
-      {loading ? <MapSkeleton className="map-stage__map" /> : <Map pharmacies={mapPharmacies} route={route} userPosition={position} focusPharmacy={selected} tileStyle={tileStyle} resetKey={mapReset} restoreView={restoreView} onViewportChange={trackViewport} onMarkerClick={openPharmacy} height="100%" className="map-stage__map" />}
+      {loading ? <MapSkeleton className="map-stage__map" /> : <Map pharmacies={mapPharmacies} route={route} userPosition={position} focusPharmacy={selected} tileStyle={tileStyle} layoutKey={panelCollapsed} resetKey={mapReset} restoreView={restoreView} onViewportChange={trackViewport} onMarkerClick={openPharmacy} height="100%" className="map-stage__map" />}
       {loadError && <div className="mobile-data-error"><DataErrorState message={loadError} onRetry={fetchPharmacyData} /></div>}
       <div className="mobile-search"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} mobile />{filters.query.trim() && !selected && tab === 'map' && <div className="mobile-search-results"><strong>{visible.length} résultat{visible.length > 1 ? 's' : ''}</strong>{visible.slice(0, 5).map(pharmacy => <button key={pharmacy.id} onClick={() => openPharmacy(pharmacy)}>{pharmacy.name}<span>{pharmacy.neighborhood || pharmacy.borough || 'Brazzaville'}</span></button>)}{visible.length === 0 && <p>Aucune pharmacie trouvée.</p>}</div>}</div>
       <CityWeather />
-      <div className={`map-tools${selected && sheetSize === 'peek' && !routeFocusMode ? ' has-detail' : ''}${sheetOpen && !routeFocusMode && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button aria-label="Recentrer la carte" title="Recentrer la carte" onClick={() => { clearRoute(); setSelected(null); setRestoreView(null); setMapReset(value => value + 1) }}><RotateCcw size={21} /></button><button aria-label="Changer le fond de carte" title="Changer le fond de carte" onClick={() => setTileStyle(value => value === 'standard' ? 'humanitarian' : 'standard')}><Layers2 size={21} /></button></div>
+      <div className={`map-tools${selected && sheetSize === 'peek' && !routeFocusMode ? ' has-detail' : ''}${sheetOpen && !routeFocusMode && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button aria-label="Recentrer la carte" title="Recentrer la carte" onClick={() => { clearRoute(); setSelected(null); setRestoreView(null); setMapReset(value => value + 1) }}><RotateCcw size={21} /></button><button aria-label="Choisir le fond de carte" title="Choisir le fond de carte" onClick={() => setTilePickerOpen(true)}><Layers2 size={21} /></button></div>
+
+      {tilePickerOpen && <TilePicker value={tileStyle} onChange={setTileStyle} onClose={() => setTilePickerOpen(false)} />}
 
       {routeFocusMode && route && selected && <div className="mobile-route-summary" role="status">
         <button className="mobile-route-summary__details" onClick={() => setRouteFocusMode(false)} aria-label="Afficher la fiche de l’itinéraire"><Navigation size={19} /><span><strong>{(route.distance / 1000).toFixed(1)} km · {Math.round(route.duration / 60)} min</strong><small>Vers {selected.name}</small></span></button>
