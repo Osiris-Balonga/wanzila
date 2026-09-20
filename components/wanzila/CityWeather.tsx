@@ -28,6 +28,7 @@ function WeatherIcon({ code, isDay }: Pick<Weather, 'code' | 'isDay'>) {
 
 export function CityWeather() {
   const [weather, setWeather] = useState<Weather | null>(null)
+  const [weatherReady, setWeatherReady] = useState(false)
   useEffect(() => {
     let active = true
     const load = async () => {
@@ -37,6 +38,7 @@ export function CityWeather() {
         const data = await response.json()
         if (active && Number.isFinite(data.temperature) && Number.isFinite(data.code)) setWeather(data)
       } catch { /* City name stays visible when weather is unavailable. */ }
+      finally { if (active) setWeatherReady(true) }
     }
     load()
     const interval = window.setInterval(load, 15 * 60 * 1000)
@@ -45,6 +47,7 @@ export function CityWeather() {
   return <div className="map-city" title={weather ? `${describe(weather.code)} · météo Open-Meteo` : 'Brazzaville'}>
     {weather && <WeatherIcon code={weather.code} isDay={weather.isDay} />}
     <span>Brazzaville</span>
+    {!weatherReady && <span className="skeleton-block weather-skeleton" aria-label="Chargement météo" />}
     {weather && <strong>{weather.temperature} °C</strong>}
   </div>
 }

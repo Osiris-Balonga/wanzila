@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { MapSkeleton } from '@/components/wanzila/LoadingStates'
 import type { Pharmacy } from '@/types/database'
 import type { RouteInfo } from '@/types/route'
 
@@ -20,5 +21,5 @@ export interface MapProps {
 
 export const Map = dynamic<MapProps>(() => import('./leaflet-map').then(module => module.LeafletMap), {
   ssr: false,
-  loading: () => <div className="grid h-full min-h-[320px] place-items-center bg-[#eef1f6] text-sm text-slate-600">Chargement de la carte…</div>,
+  loading: () => <MapSkeleton className="h-full min-h-[320px]" />,
 })

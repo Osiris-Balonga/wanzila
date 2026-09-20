@@ -1,5 +1,6 @@
 import { Bookmark, MapPin, Navigation, Phone } from 'lucide-react'
 import { getAvailability, hasCoordinates } from '@/lib/pharmacies'
+import { trackEvent } from '@/lib/analytics'
 import { AvailabilityBadge, PharmacyArtwork } from './PharmacyArtwork'
 import type { Pharmacy } from '@/types/database'
 
@@ -24,7 +25,7 @@ export function PharmacyRow({ pharmacy, saved, onOpen, onSave, onRoute }: Props)
       </span>
     </button>
     <div className="pharmacy-row__actions">
-      {phone && <a href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${pharmacy.name}`}><Phone size={16} /> Appeler</a>}
+      {phone && <a href={`tel:${phone.replace(/\s/g, '')}`} onClick={() => trackEvent('pharmacy_call_started', { pharmacy_id: pharmacy.id })} aria-label={`Appeler ${pharmacy.name}`}><Phone size={16} /> Appeler</a>}
       {located && <button onClick={onRoute}><Navigation size={16} /> Itinéraire</button>}
       <button onClick={onSave} aria-label={saved ? `Retirer ${pharmacy.name} des enregistrées` : `Enregistrer ${pharmacy.name}`}><Bookmark size={16} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Enregistrée' : 'Enregistrer'}</button>
     </div>

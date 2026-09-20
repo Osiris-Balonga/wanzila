@@ -5,6 +5,9 @@ export interface DutyPeriod {
   starts_at: string
   ends_at: string
   source_url: string
+  source_name?: string
+  verified_at?: string
+  precision?: 'day' | 'time'
 }
 
 export interface Pharmacy {
@@ -19,8 +22,10 @@ export interface Pharmacy {
   phone?: string | null
   photo_url?: string | null
   photo_credit?: string | null
+  place_source_url?: string | null
+  place_verified_at?: string | null
   opening_hours?: { daily_start: string; daily_end: string; source_url: string } | null
-  data_origin?: 'osm' | 'provided'
+  data_origin?: 'osm' | 'provided' | 'dpm' | 'google_maps'
   category: PharmacyCategory
   duty_status: DutyStatus
   duty_periods: DutyPeriod[]

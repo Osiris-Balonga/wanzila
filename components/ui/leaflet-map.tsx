@@ -5,12 +5,12 @@ import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MAP_CONFIG } from '@/lib/constants'
-import { getAvailability, hasCoordinates } from '@/lib/pharmacies'
+import { getAvailability, hasCoordinates, isOnDuty } from '@/lib/pharmacies'
 import type { MapProps } from './map'
 
 const marker = (pharmacy: MapProps['pharmacies'][number], selected: boolean) => L.icon({
   iconUrl: pharmacy.category === 'night_pharmacy' ? '/markers/night.webp' : '/markers/day.webp',
-  className: `wanzila-pin${selected ? ' is-selected' : ''}${getAvailability(pharmacy) === 'closed' ? ' is-closed' : ''}`,
+  className: `wanzila-pin${selected ? ' is-selected' : ''}${isOnDuty(pharmacy) ? ' is-on-duty' : ''}${getAvailability(pharmacy) === 'closed' ? ' is-closed' : ''}`,
   iconSize: [58, 60], iconAnchor: [29, 53],
 })
 const userIcon = L.divIcon({
