@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock3, MapPin, Navigation, Search, Store,
 import { ConversionFunnel } from '@/components/admin/AdminCharts'
 import { AdminTrendChart } from '@/components/admin/AdminTrendChart'
 import { PeriodSelector } from '@/components/admin/PeriodSelector'
+import { RefreshAnalyticsButton } from '@/components/admin/RefreshAnalyticsButton'
 import { getAdminAnalytics, getDataQuality, percentageChange } from '@/lib/admin-analytics'
 
 function clampPeriod(raw?: string) {
@@ -25,7 +26,7 @@ export default async function AdminOverviewPage({ searchParams }: { searchParams
   const successDelta = successRate - previousSuccessRate
   return (
     <div className="admin-page">
-      <header className="admin-page-header"><div><h1>Vue d’ensemble</h1><p>Les indicateurs essentiels de Wanzila</p></div><div className="admin-page-header__actions"><PeriodSelector value={period} /></div></header>
+      <header className="admin-page-header"><div><h1>Vue d’ensemble</h1><p>Les indicateurs essentiels de Wanzila</p></div><div className="admin-page-header__actions"><RefreshAnalyticsButton /><PeriodSelector value={period} /></div></header>
 
       <section className="admin-kpis admin-kpis--overview" aria-label="Indicateurs essentiels">
         <article><span className="admin-kpi-icon"><Search /></span><div><span className="admin-kpi-value"><strong>{analytics.totals.searches.toLocaleString('fr-FR')}</strong><small className={searchDelta >= 0 ? 'is-positive' : 'is-negative'}><TrendingUp size={14} /> {searchDelta >= 0 ? '+' : ''}{searchDelta} %</small></span><p>Recherches</p></div></article>
