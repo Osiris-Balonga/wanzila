@@ -3,7 +3,7 @@ import Script from "next/script"
 import "./globals.css"
 import "./wanzila.css"
 
-const UMAMI_WEBSITE_ID = "f94a028b-83b4-4f9b-b922-c6924617cce2"
+const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || "f94a028b-83b4-4f9b-b922-c6924617cce2"
 
 export const metadata: Metadata = {
   title: "Wanzila — Pharmacies à Brazzaville",

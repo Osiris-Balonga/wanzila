@@ -9,3 +9,10 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start:render
     autoDeployTrigger: commit
+    envVars:
+      - key: ADMIN_SESSION_SECRET
+        generateValue: true
+      - key: NEXT_PUBLIC_UMAMI_WEBSITE_ID
+        value: f94a028b-83b4-4f9b-b922-c6924617cce2
+      - key: UMAMI_API_KEY
+        sync: false

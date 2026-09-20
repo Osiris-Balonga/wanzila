@@ -1,5 +1,11 @@
 # Wanzila
 
+## Administration locale
+
+Le panneau administrateur est disponible sur `http://localhost:3100/admin`. Le compte local est `grace.mavoungou@wanzila.cg` avec le mot de passe `Wanzila2026!`. Le mot de passe est stocké sous forme de hash scrypt dans `db.json`.
+
+Définissez `ADMIN_SESSION_SECRET` avec une valeur aléatoire longue en production. Pour remplacer les chiffres de démonstration par les données Umami Cloud, définissez également `UMAMI_API_KEY` et, si nécessaire, `UMAMI_WEBSITE_ID` et `UMAMI_API_BASE_URL`.
+
 Wanzila is a map-first directory for pharmacies in Brazzaville. Desktop uses a navigation rail and a results panel; mobile keeps the map central and opens pharmacy details in a bottom sheet.
 
 ## Local development
