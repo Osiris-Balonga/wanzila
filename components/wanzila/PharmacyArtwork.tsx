@@ -1,20 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getAvailability } from '@/lib/pharmacies'
+import { ImageOff } from 'lucide-react'
+import { getAvailability, isOnDuty } from '@/lib/pharmacies'
 import type { Pharmacy } from '@/types/database'
 
 export function PharmacyArtwork({ pharmacy, className }: { pharmacy: Pharmacy; className: string }) {
-  const fallback = pharmacy.category === 'night_pharmacy' ? '/illustrations/pharmacy-night.webp' : '/illustrations/pharmacy-day.webp'
-  const [source, setSource] = useState(pharmacy.photo_url || fallback)
-  useEffect(() => setSource(pharmacy.photo_url || fallback), [pharmacy.photo_url, fallback])
-  return <span className={className} style={{ backgroundImage: `url(${fallback})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-    <img src={source} alt={source === fallback ? 'Illustration de pharmacie' : `Façade de ${pharmacy.name}`} loading={className === 'pharmacy-visual' ? 'eager' : 'lazy'} onError={() => setSource(fallback)} />
+  const [photoFailed, setPhotoFailed] = useState(false)
+  useEffect(() => setPhotoFailed(false), [pharmacy.photo_url])
+  const hasPhoto = Boolean(pharmacy.photo_url) && !photoFailed
+  return <span className={`${className}${hasPhoto ? '' : ' has-no-photo'}`}>
+    {hasPhoto
+      ? <img src={pharmacy.photo_url!} alt={`Façade de ${pharmacy.name}`} loading={className === 'pharmacy-visual' ? 'eager' : 'lazy'} onError={() => setPhotoFailed(true)} />
+      : <span className="pharmacy-artwork__placeholder" aria-label={`Aucune photo disponible pour ${pharmacy.name}`}><ImageOff aria-hidden="true" /><small>Aucune photo</small></span>}
   </span>
 }
 
 export function AvailabilityBadge({ pharmacy }: { pharmacy: Pharmacy }) {
+  if (isOnDuty(pharmacy)) return <span className="status-badges"><span className="availability-badge availability-badge--duty">Ouverte · de garde aujourd’hui</span></span>
   const availability = getAvailability(pharmacy)
+  if (availability === 'unknown') return null
   const label = availability === 'open' ? 'Ouverte selon les horaires publiés' : availability === 'closed' ? 'Fermée selon les horaires publiés' : 'Horaires à confirmer'
-  return <span className={`availability-badge availability-badge--${availability}`}>{label}</span>
+  return <span className="status-badges">
+    <span className={`availability-badge availability-badge--${availability}`}>{label}</span>
+  </span>
 }
