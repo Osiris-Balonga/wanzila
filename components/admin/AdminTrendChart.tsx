@@ -57,7 +57,7 @@ export function AdminTrendChart({ points }: { points: TrendPoint[] }) {
                 stroke={series.color}
                 strokeWidth={2.5}
                 dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
-                activeDot={{ r: 5, fill: '#fff', strokeWidth: 3 }}
+                activeDot={{ r: 5, fill: series.color, stroke: '#fff', strokeWidth: 3 }}
                 isAnimationActive={false}
               />
             ))}
