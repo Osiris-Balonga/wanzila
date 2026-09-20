@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -67,6 +67,16 @@ function PharmacyMapPreview({ pharmacy }: { pharmacy: MapProps['pharmacies'][num
 }
 
 export function LeafletMap({ pharmacies, route, userPosition, height = '100%', className = '', onMarkerClick, focusPharmacy, tileStyle = 'clean', layoutKey, resetKey, restoreView, onViewportChange }: MapProps) {
+  const [supportsHover, setSupportsHover] = useState(false)
+
+  useEffect(() => {
+    const hoverQuery = window.matchMedia('(min-width: 901px) and (hover: hover) and (pointer: fine)')
+    const updateHoverSupport = () => setSupportsHover(hoverQuery.matches)
+    updateHoverSupport()
+    hoverQuery.addEventListener('change', updateHoverSupport)
+    return () => hoverQuery.removeEventListener('change', updateHoverSupport)
+  }, [])
+
   return <div className={`${className} leaflet-map-shell`} style={{ height }}>
     <MapContainer center={MAP_CONFIG.defaultCenter} zoom={MAP_CONFIG.defaultZoom} className="h-full w-full" zoomControl={false} attributionControl={false}>
       {tileStyle === 'clean' ? <>
@@ -94,7 +104,7 @@ export function LeafletMap({ pharmacies, route, userPosition, height = '100%', c
         position={[pharmacy.latitude, pharmacy.longitude]}
         icon={marker(pharmacy, pharmacy.id === focusPharmacy?.id)}
         eventHandlers={{ click: () => onMarkerClick?.(pharmacy) }}
-      ><Tooltip className="map-preview-tooltip" direction="top" offset={[0, -25]} opacity={1}><PharmacyMapPreview pharmacy={pharmacy} /></Tooltip></Marker>)}
+      >{supportsHover && <Tooltip className="map-preview-tooltip" direction="top" offset={[0, -25]} opacity={1}><PharmacyMapPreview pharmacy={pharmacy} /></Tooltip>}</Marker>)}
       {userPosition && <Marker position={userPosition} icon={userIcon} title="Votre position" />}
       {route && <Polyline positions={route.coordinates} pathOptions={{ color: '#6537e9', weight: 6, opacity: 0.9 }} />}
     </MapContainer>
