@@ -154,7 +154,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .wanzila-user-location__pulse { position:absolute; top:10px; left:10px; width:24px; height:24px; border-radius:50%; background:#1686ed75; animation:user-location-pulse 2.4s ease-out infinite; }
 .wanzila-user-location__dot { position:absolute; top:13px; left:13px; width:18px; height:18px; border:3px solid #fff; border-radius:50%; background:#1686ed; box-shadow:0 2px 7px #1f4f8a88; }
 @keyframes user-location-pulse { 0% { transform:scale(.85); opacity:.7; } 75%,100% { transform:scale(2.1); opacity:0; } }
-.mobile-search, .mobile-sheet, .mobile-tabs, .pharmacy-details__preview { display:none; }
+.mobile-search, .mobile-sheet, .mobile-tabs, .mobile-route-summary, .pharmacy-details__preview { display:none; }
 @media (max-width:900px) {
   .app-shell-skeleton { display:block; height:100dvh; min-height:0; }
   .app-shell-skeleton__rail, .app-shell-skeleton__panel { display:none; }
@@ -183,6 +183,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .map-tools { right:16px; bottom:calc(90px + env(safe-area-inset-bottom)); }
   .map-tools.has-detail { bottom:calc(340px + env(safe-area-inset-bottom)); }
   .map-tools.is-obscured { display:none; }
+  .mobile-route-summary { position:absolute; z-index:1100; left:15px; right:76px; bottom:calc(84px + env(safe-area-inset-bottom)); display:flex; align-items:center; min-height:54px; padding:5px; border-radius:15px; background:#fff; box-shadow:0 4px 14px #2020402b; }
+  .mobile-route-summary__details { min-width:0; flex:1; display:flex; align-items:center; gap:10px; padding:5px 7px; border:0; color:var(--ink); background:transparent; text-align:left; }
+  .mobile-route-summary__details > svg { flex:none; color:var(--purple); }
+  .mobile-route-summary__details span { min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .mobile-route-summary__details strong, .mobile-route-summary__details small { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .mobile-route-summary__details strong { font-size:13px; }
+  .mobile-route-summary__details small { color:var(--muted); font-size:10px; }
+  .mobile-route-summary__close { flex:none; display:grid; place-items:center; width:40px; height:40px; border:0; border-radius:11px; color:#58617b; background:#f3f2fa; }
   .mobile-sheet { position:absolute; z-index:1100; left:0; right:0; bottom:calc(72px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; height:min(58dvh,480px); border-radius:25px 25px 0 0; background:#fff; box-shadow:0 -5px 24px #28224c1e; overflow:hidden; transition:height .24s cubic-bezier(.2,0,0,1),transform .24s cubic-bezier(.2,0,0,1); }
   .mobile-sheet.is-hidden { transform:translateY(calc(100% + 20px)); pointer-events:none; }
   .mobile-sheet.is-detail { height:252px; }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import Image from 'next/image'
-import { Bookmark, Layers2, MapPin, RotateCcw, Search, SlidersHorizontal, X, PlusCircle, Clock3, Siren } from 'lucide-react'
+import { Bookmark, Layers2, MapPin, Navigation, RotateCcw, Search, SlidersHorizontal, X, PlusCircle, Clock3, Siren } from 'lucide-react'
 import { Map } from '@/components/ui/map'
 import { CityWeather } from '@/components/wanzila/CityWeather'
 import { PharmacyDetails, type RouteState } from '@/components/wanzila/PharmacyDetails'
@@ -100,6 +100,7 @@ export default function HomePage() {
   const [route, setRoute] = useState<RouteInfo | null>(null)
   const [position, setPosition] = useState<[number, number] | null>(null)
   const [routeState, setRouteState] = useState<RouteState>({ status: 'idle' })
+  const [routeFocusMode, setRouteFocusMode] = useState(false)
   const requestRef = useRef(0)
   const dragStart = useRef<number | null>(null)
   const dragStartHeight = useRef<number | null>(null)
@@ -139,6 +140,10 @@ export default function HomePage() {
     if (match) { setSelected(match); setSheetSize('peek') }
   }, [pharmacies])
 
+  useEffect(() => {
+    if (routeState.status === 'ready' && route) setRouteFocusMode(true)
+  }, [route, routeState.status])
+
   const visible = useMemo(() => filterPharmacies(pharmacies, filters), [pharmacies, filters])
   const saved = useMemo(() => pharmacies.filter(pharmacy => savedIds.includes(pharmacy.id)), [pharmacies, savedIds])
   const visiblePoints = useMemo(() => visible.filter(hasCoordinates), [visible])
@@ -166,6 +171,7 @@ export default function HomePage() {
     setRoute(null)
     setPosition(null)
     setRouteState({ status: 'idle' })
+    setRouteFocusMode(false)
   }, [])
 
   const openPharmacy = useCallback((pharmacy: Pharmacy) => {
@@ -266,6 +272,7 @@ export default function HomePage() {
     setRoute(null)
     setPosition(null)
     setRouteState({ status: 'loading' })
+    setRouteFocusMode(false)
     try {
       if (!navigator.geolocation) throw new Error('La géolocalisation est indisponible sur ce navigateur.')
       const location = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }))
@@ -316,9 +323,14 @@ export default function HomePage() {
       {loadError && <div className="mobile-data-error"><DataErrorState message={loadError} onRetry={fetchPharmacyData} /></div>}
       <div className="mobile-search"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} mobile />{filters.query.trim() && !selected && tab === 'map' && <div className="mobile-search-results"><strong>{visible.length} résultat{visible.length > 1 ? 's' : ''}</strong>{visible.slice(0, 5).map(pharmacy => <button key={pharmacy.id} onClick={() => openPharmacy(pharmacy)}>{pharmacy.name}<span>{pharmacy.neighborhood || pharmacy.borough || 'Brazzaville'}</span></button>)}{visible.length === 0 && <p>Aucune pharmacie trouvée.</p>}</div>}</div>
       <CityWeather />
-      <div className={`map-tools${selected && sheetSize === 'peek' ? ' has-detail' : ''}${sheetOpen && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button aria-label="Recentrer la carte" title="Recentrer la carte" onClick={() => { clearRoute(); setSelected(null); setRestoreView(null); setMapReset(value => value + 1) }}><RotateCcw size={21} /></button><button aria-label="Changer le fond de carte" title="Changer le fond de carte" onClick={() => setTileStyle(value => value === 'standard' ? 'humanitarian' : 'standard')}><Layers2 size={21} /></button></div>
+      <div className={`map-tools${selected && sheetSize === 'peek' && !routeFocusMode ? ' has-detail' : ''}${sheetOpen && !routeFocusMode && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button aria-label="Recentrer la carte" title="Recentrer la carte" onClick={() => { clearRoute(); setSelected(null); setRestoreView(null); setMapReset(value => value + 1) }}><RotateCcw size={21} /></button><button aria-label="Changer le fond de carte" title="Changer le fond de carte" onClick={() => setTileStyle(value => value === 'standard' ? 'humanitarian' : 'standard')}><Layers2 size={21} /></button></div>
 
-      <div className={`mobile-sheet${selected ? ' is-detail' : ''}${selected && routeState.status !== 'idle' ? ' has-route-status' : ''}${sheetSize === 'full' ? ' is-full' : ''}${!sheetOpen ? ' is-hidden' : ''}`} style={sheetDragHeight !== null ? { height: `${sheetDragHeight}px`, transition: 'none' } : undefined}>
+      {routeFocusMode && route && selected && <div className="mobile-route-summary" role="status">
+        <button className="mobile-route-summary__details" onClick={() => setRouteFocusMode(false)} aria-label="Afficher la fiche de l’itinéraire"><Navigation size={19} /><span><strong>{(route.distance / 1000).toFixed(1)} km · {Math.round(route.duration / 60)} min</strong><small>Vers {selected.name}</small></span></button>
+        <button className="mobile-route-summary__close" onClick={clearRoute} aria-label="Quitter l’itinéraire"><X size={19} /></button>
+      </div>}
+
+      <div className={`mobile-sheet${selected ? ' is-detail' : ''}${selected && routeState.status !== 'idle' ? ' has-route-status' : ''}${sheetSize === 'full' ? ' is-full' : ''}${!sheetOpen || routeFocusMode ? ' is-hidden' : ''}`} style={sheetDragHeight !== null ? { height: `${sheetDragHeight}px`, transition: 'none' } : undefined}>
         <div className="mobile-sheet__handle-zone" onPointerDown={startSheetDrag} onPointerMove={moveSheetDrag} onPointerUp={finishSheetDrag} onPointerCancel={cancelSheetDrag}><button className="mobile-sheet__handle" aria-label={sheetSize === 'full' ? 'Réduire la fiche' : 'Développer la fiche'} onClick={() => { if (dragMoved.current) { dragMoved.current = false; return } setSheetSize(value => value === 'peek' ? 'full' : 'peek') }} /></div>
         <div className="mobile-sheet__content">{selected ? selectedSheet : tab === 'saved' ? <div className="mobile-sheet__list"><div className="panel-heading"><div><h1>Mes pharmacies enregistrées</h1><p>{saved.length} pharmacie{saved.length > 1 ? 's' : ''} sur cet appareil</p></div><button className="icon-button" aria-label="Fermer les enregistrés" onClick={() => selectTab('map')}><X size={20} /></button></div>{saved.length === 0 && <EmptyState kind="saved" />}{saved.map(pharmacy => <PharmacyRow key={pharmacy.id} pharmacy={pharmacy} saved onOpen={() => openPharmacy(pharmacy)} onSave={() => toggleSaved(pharmacy.id)} onRoute={() => startRoute(pharmacy)} />)}</div> : <ContributeState onClose={() => selectTab('map')} />}</div>
       </div>
