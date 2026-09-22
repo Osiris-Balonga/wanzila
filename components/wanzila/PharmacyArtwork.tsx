@@ -19,8 +19,7 @@ export function PharmacyArtwork({ pharmacy, className }: { pharmacy: Pharmacy; c
 export function AvailabilityBadge({ pharmacy }: { pharmacy: Pharmacy }) {
   if (isOnDuty(pharmacy)) return <span className="status-badges"><span className="availability-badge availability-badge--duty">Ouverte · de garde aujourd’hui</span></span>
   const availability = getAvailability(pharmacy)
-  if (availability === 'unknown') return null
-  const label = availability === 'open' ? 'Ouverte selon les horaires publiés' : availability === 'closed' ? 'Fermée selon les horaires publiés' : 'Horaires à confirmer'
+  const label = availability === 'open' ? 'Ouverte selon les horaires publiés' : availability === 'closed' ? 'Fermée selon les horaires publiés' : 'Horaires inconnus'
   return <span className="status-badges">
     <span className={`availability-badge availability-badge--${availability}`}>{label}</span>
   </span>

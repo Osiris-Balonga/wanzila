@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Navigation, Phone } from 'lucide-react'
+import { Bookmark, MapPin, MapPinOff, Navigation, Phone } from 'lucide-react'
 import { getAvailability, hasCoordinates } from '@/lib/pharmacies'
 import { trackEvent } from '@/lib/analytics'
 import { AvailabilityBadge, PharmacyArtwork } from './PharmacyArtwork'
@@ -25,7 +25,8 @@ export function PharmacyRow({ pharmacy, distance, saved, onOpen, onSave, onRoute
       <PharmacyArtwork pharmacy={pharmacy} className="pharmacy-row__visual" />
       <span className="pharmacy-row__text">
         <strong>{pharmacy.name}</strong>
-        <small><MapPin size={14} /> {pharmacy.neighborhood || pharmacy.borough || (pharmacy.full_address !== 'Adresse non renseignée' ? pharmacy.full_address : 'Brazzaville')}{distance !== undefined && <b className="pharmacy-row__distance">· {formatDistance(distance)}</b>}</small>
+        <small><MapPin size={14} /> {pharmacy.neighborhood || pharmacy.borough || (pharmacy.full_address !== 'Adresse non renseignée' ? pharmacy.full_address : 'Brazzaville')}{distance !== undefined && <b className="pharmacy-row__distance">· ≈ {formatDistance(distance)}</b>}</small>
+        {!located && <small className="pharmacy-row__map-status"><MapPinOff size={14} /> Position indisponible sur la carte</small>}
         <AvailabilityBadge pharmacy={pharmacy} />
       </span>
     </button>
