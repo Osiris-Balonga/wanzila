@@ -19,7 +19,7 @@ const userIcon = L.divIcon({
   iconSize: [44, 44], iconAnchor: [22, 22],
 })
 
-function MapCamera({ route, pharmacies, resetKey, restoreView, layoutKey }: Pick<MapProps, 'route' | 'pharmacies' | 'resetKey' | 'restoreView' | 'layoutKey'>) {
+function MapCamera({ route, pharmacies, userPosition, resetKey, restoreView, layoutKey }: Pick<MapProps, 'route' | 'pharmacies' | 'userPosition' | 'resetKey' | 'restoreView' | 'layoutKey'>) {
   const map = useMap()
   useEffect(() => {
     map.invalidateSize({ pan: false, animate: false })
@@ -36,10 +36,11 @@ function MapCamera({ route, pharmacies, resetKey, restoreView, layoutKey }: Pick
         : { padding: [56, 56], maxZoom: 16 })
     } else {
       const points = pharmacies.filter(hasCoordinates)
-      if (map.getSize().x < 720 && points.length > 5) map.setView([-4.263, 15.268], 13, { animate: false })
+      if (userPosition && points.length) map.fitBounds(L.latLngBounds([userPosition, ...points.map(p => [p.latitude, p.longitude] as [number, number])]), { padding: [48, 48], maxZoom: 15 })
+      else if (map.getSize().x < 720 && points.length > 5) map.setView([-4.263, 15.268], 13, { animate: false })
       else if (points.length) map.fitBounds(L.latLngBounds(points.map(p => [p.latitude, p.longitude])), { padding: [48, 48], maxZoom: 14 })
     }
-  }, [map, route, pharmacies, resetKey, restoreView])
+  }, [map, route, pharmacies, userPosition, resetKey, restoreView])
   return null
 }
 
@@ -97,7 +98,7 @@ export function LeafletMap({ pharmacies, route, userPosition, height = '100%', c
         subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
         maxZoom={20}
       />}
-      <MapCamera pharmacies={pharmacies} route={route} resetKey={resetKey} restoreView={restoreView} layoutKey={layoutKey} />
+      <MapCamera pharmacies={pharmacies} route={route} userPosition={userPosition} resetKey={resetKey} restoreView={restoreView} layoutKey={layoutKey} />
       <ViewportReporter onViewportChange={onViewportChange} />
       {pharmacies.filter(hasCoordinates).map(pharmacy => <Marker
         key={pharmacy.id}
