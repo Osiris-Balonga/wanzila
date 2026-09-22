@@ -5,6 +5,8 @@ export type AnalyticsEvent =
   | 'route_started'
   | 'route_ready'
   | 'route_failed'
+  | 'nearby_pharmacies_enabled'
+  | 'nearby_pharmacies_failed'
   | 'pharmacy_call_started'
   | 'pharmacy_save_changed'
   | 'emergency_call_started'

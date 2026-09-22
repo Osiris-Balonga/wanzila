@@ -6,13 +6,18 @@ import type { Pharmacy } from '@/types/database'
 
 interface Props {
   pharmacy: Pharmacy
+  distance?: number
   saved: boolean
   onOpen: () => void
   onSave: () => void
   onRoute: () => void
 }
 
-export function PharmacyRow({ pharmacy, saved, onOpen, onSave, onRoute }: Props) {
+function formatDistance(distance: number) {
+  return distance < 1000 ? `${Math.max(10, Math.round(distance / 10) * 10)} m` : `${(distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`
+}
+
+export function PharmacyRow({ pharmacy, distance, saved, onOpen, onSave, onRoute }: Props) {
   const phone = pharmacy.phone?.split('/')[0].trim()
   const located = hasCoordinates(pharmacy)
   return <article className={`pharmacy-row${getAvailability(pharmacy) === 'closed' ? ' is-closed' : ''}`}>
@@ -20,7 +25,7 @@ export function PharmacyRow({ pharmacy, saved, onOpen, onSave, onRoute }: Props)
       <PharmacyArtwork pharmacy={pharmacy} className="pharmacy-row__visual" />
       <span className="pharmacy-row__text">
         <strong>{pharmacy.name}</strong>
-        <small><MapPin size={14} /> {pharmacy.neighborhood || pharmacy.borough || (pharmacy.full_address !== 'Adresse non renseignée' ? pharmacy.full_address : 'Brazzaville')}</small>
+        <small><MapPin size={14} /> {pharmacy.neighborhood || pharmacy.borough || (pharmacy.full_address !== 'Adresse non renseignée' ? pharmacy.full_address : 'Brazzaville')}{distance !== undefined && <b className="pharmacy-row__distance">· {formatDistance(distance)}</b>}</small>
         <AvailabilityBadge pharmacy={pharmacy} />
       </span>
     </button>

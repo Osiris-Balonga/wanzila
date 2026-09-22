@@ -37,6 +37,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .filter-chip { flex:none; display:flex; align-items:center; gap:5px; min-height:35px; padding:0 10px; border:1px solid #eeeaf6; border-radius:18px; color:#3d4563; background:#fff; box-shadow:0 2px 7px #4033700b; white-space:nowrap; font-size:11px; font-weight:600; }
 .filter-chip svg { color:var(--purple); }
 .filter-chip.is-active { color:var(--purple-dark); background:var(--purple-soft); border-color:#dfd4ff; }
+.filter-chip--nearby { border:0; cursor:pointer; }
+.filter-chip--nearby span { font-variant-numeric:tabular-nums; }
 .filter-chip--select { padding-right:7px; }
 .filter-chip select { max-width:118px; border:0; outline:0; color:inherit; background:transparent; font-size:11px; font-weight:600; cursor:pointer; }
 .panel-heading { display:flex; align-items:start; justify-content:space-between; margin:18px 1px 15px; }
@@ -101,6 +103,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pharmacy-row__text strong { font-size:13px; line-height:1.2; font-weight:750; text-wrap:pretty; }
 .pharmacy-row__text small { display:flex; align-items:center; gap:4px; overflow:hidden; color:var(--muted); white-space:nowrap; text-overflow:ellipsis; font-size:11px; }
 .pharmacy-row__text small svg { flex:none; }
+.pharmacy-row__distance { color:var(--purple-dark); font-weight:750; font-variant-numeric:tabular-nums; }
 .status-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
 .availability-badge { display:inline-flex; width:max-content; max-width:100%; align-items:center; padding:4px 7px; border-radius:10px; color:#596782; background:#f1f2f6; font-size:10px; line-height:1.25; font-weight:700; }
 .availability-badge--open { color:#087b5a; background:#dff8eb; }
@@ -150,6 +153,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .map-tools button:hover, .map-tools a:hover { background:var(--purple-soft); }
 .map-tools .map-tools__emergency { color:#fff; background:#d82445; }
 .map-tools .map-tools__emergency:hover { background:#b91c38; }
+.map-tools button.is-active { color:#fff; background:var(--purple); }
+.map-tools button.is-active:hover { background:var(--purple-dark); }
+.map-tools button.is-loading svg { animation:nearby-spin .8s linear infinite; }
+.nearby-message { position:absolute; z-index:650; right:78px; bottom:31px; max-width:290px; margin:0; padding:11px 14px; border-radius:12px; color:#8f2137; background:#fff; box-shadow:0 5px 22px #21183c2b; font-size:11px; font-weight:650; line-height:1.4; }
+@keyframes nearby-spin { to { transform:rotate(360deg); } }
 .tile-picker-backdrop { position:absolute; z-index:1250; inset:0; background:transparent; }
 .tile-picker { position:absolute; right:78px; bottom:24px; width:min(380px,calc(100% - 36px)); padding:17px; border-radius:16px; background:#fff; box-shadow:0 8px 26px #19153538; }
 .tile-picker > header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
@@ -230,6 +238,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .map-tools { right:16px; bottom:calc(90px + env(safe-area-inset-bottom)); }
   .map-tools.has-detail { bottom:calc(340px + env(safe-area-inset-bottom)); }
   .map-tools.is-obscured { display:none; }
+  .nearby-message { right:70px; bottom:calc(99px + env(safe-area-inset-bottom)); max-width:calc(100% - 96px); }
   .tile-picker-backdrop { position:absolute; background:transparent; }
   .tile-picker { position:absolute; left:0; right:0; bottom:calc(72px + env(safe-area-inset-bottom)); width:auto; padding:20px 18px 24px; border-radius:20px 20px 0 0; box-shadow:0 -6px 20px #17132f24; }
   .tile-picker > header { margin-bottom:18px; }
@@ -292,6 +301,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .desktop-panel__inner, .desktop-panel__head, .desktop-panel__list { animation:none; }
   .wanzila-pin, .leaflet-marker-icon { transition:none; }
   .wanzila-user-location__pulse { animation:none; transform:scale(1.4); opacity:.3; }
+  .map-tools button.is-loading svg { animation:none; }
   .app-splash { transition-duration:.01ms; }
   .app-splash__brand { animation:none; }
   .skeleton-block { animation:none; background:#ececf3; }
