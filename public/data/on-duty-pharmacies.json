@@ -12,7 +12,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/",
     "data_origin": "dpm"
   },
@@ -31,7 +40,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/",
     "data_origin": "dpm"
   },
@@ -49,8 +67,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+Bet'leem/@-4.263288,15.256068,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/",
     "data_origin": "dpm"
   },
@@ -69,8 +87,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+Blanche+Gomes/@-4.2781311,15.2573858,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
     "data_origin": "dpm"
   },
@@ -86,7 +104,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
     "data_origin": "dpm"
   },
@@ -100,8 +127,8 @@
     "neighborhood": "Centre Sportif",
     "borough": "Makélékélé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
     "data_origin": "dpm"
   },
@@ -120,7 +147,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/2/",
     "data_origin": "dpm"
   },
@@ -133,8 +169,8 @@
     "full_address": "Case J434, Moungali 3 OCH",
     "borough": "Moungali",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -147,8 +183,8 @@
     "full_address": "72 rue Massoukou",
     "borough": "Moungali",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -161,8 +197,8 @@
     "full_address": "Talangaï",
     "borough": "Talangaï",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -175,8 +211,8 @@
     "full_address": "67 rue Mboko",
     "borough": "Poto-Poto",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -189,8 +225,8 @@
     "full_address": "Gare routière du marché Total",
     "borough": "Bacongo",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -207,7 +243,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -225,7 +270,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/3/",
     "data_origin": "dpm"
   },
@@ -241,8 +295,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+Galien/@-4.2731798,15.2386959,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/",
     "data_origin": "dpm"
   },
@@ -255,8 +309,8 @@
     "full_address": "197 bis rue Bandzas",
     "borough": "Ouenzé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/",
     "data_origin": "dpm"
   },
@@ -271,8 +325,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+Gim/@-4.2431147,15.2758834,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/",
     "data_origin": "dpm"
   },
@@ -285,8 +339,8 @@
     "full_address": "01 rue Obili, pont Mikalou",
     "borough": "Talangaï",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/4/",
     "data_origin": "dpm"
   },
@@ -300,8 +354,8 @@
     "neighborhood": "Le Bled",
     "borough": "Mfilou",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/5/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/5/",
     "data_origin": "dpm"
   },
@@ -315,8 +369,8 @@
     "neighborhood": "Manianga",
     "borough": "Djiri",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/",
     "data_origin": "dpm"
   },
@@ -329,8 +383,8 @@
     "full_address": "Avenue Paul Doumer, face à la CNSS",
     "borough": "Poto-Poto",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/",
     "data_origin": "dpm"
   },
@@ -343,8 +397,8 @@
     "full_address": "966 avenue Fulbert Youlou",
     "borough": "Makélékélé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/6/",
     "data_origin": "dpm"
   },
@@ -357,8 +411,8 @@
     "full_address": "208 bis rue Lagué",
     "borough": "Ouenzé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/7/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/7/",
     "data_origin": "dpm"
   },
@@ -372,8 +426,8 @@
     "neighborhood": "Poto-Poto",
     "borough": "Poto-Poto",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/7/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/7/",
     "data_origin": "dpm"
   },
@@ -387,8 +441,8 @@
     "neighborhood": "Kinsoundi",
     "borough": "Makélékélé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/8/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/8/",
     "data_origin": "dpm"
   },
@@ -401,8 +455,8 @@
     "full_address": "Face à l’arrêt Cent-Cent, Madibou",
     "borough": "Madibou",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/",
     "data_origin": "dpm"
   },
@@ -415,8 +469,8 @@
     "full_address": "32 rue Bandzampougui",
     "borough": "Mfilou",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/",
     "data_origin": "dpm"
   },
@@ -429,8 +483,8 @@
     "full_address": "85 rue Franceville",
     "borough": "Moungali",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/",
     "data_origin": "dpm"
   },
@@ -448,7 +502,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/9/",
     "data_origin": "dpm"
   },
@@ -463,8 +526,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+Renande+%26+Maat/@-4.2761133,15.2820252,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
     "data_origin": "dpm"
   },
@@ -482,8 +545,8 @@
     "place_source_url": "https://www.google.com/maps/place/Pharmacie+RHINA/@-4.2588035,15.2899101,17z",
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
     "data_origin": "dpm"
   },
@@ -502,7 +565,16 @@
     "place_verified_at": "2026-09-20T14:00:00+01:00",
     "category": "pharmacy",
     "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_periods": [
+      {
+        "starts_at": "2026-09-22T00:00:00+01:00",
+        "ends_at": "2027-01-01T00:00:00+01:00",
+        "precision": "day",
+        "source_name": "Démonstration Wanzila",
+        "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
+        "verified_at": "2026-09-22T00:00:00+01:00"
+      }
+    ],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
     "data_origin": "dpm"
   },
@@ -515,8 +587,8 @@
     "full_address": "Avenue des Trois Martyrs, face à l’hôpital de Talangaï",
     "borough": "Talangaï",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
     "data_origin": "dpm"
   },
@@ -529,8 +601,8 @@
     "full_address": "Ouenzé",
     "borough": "Ouenzé",
     "category": "pharmacy",
-    "duty_status": "confirmed",
-    "duty_periods": [{ "starts_at": "2026-09-20T00:00:00+01:00", "ends_at": "2026-09-21T00:00:00+01:00", "precision": "day", "source_name": "DPM Congo", "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/", "verified_at": "2026-09-20T13:30:57+01:00" }],
+    "duty_status": "unverified",
+    "duty_periods": [],
     "source_url": "https://dpmcongo.org/pharmacies-de-garde/page/10/",
     "data_origin": "dpm"
   }
