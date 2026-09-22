@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import Image from 'next/image'
-import { Bookmark, Clock3, Layers2, MapPin, Navigation, PanelLeft, PlusCircle, RotateCcw, Search, Siren, SlidersHorizontal, X } from 'lucide-react'
+import { Bookmark, Clock3, Layers2, LoaderCircle, LocateFixed, MapPin, Navigation, PanelLeft, PlusCircle, RotateCcw, Search, Siren, SlidersHorizontal, X } from 'lucide-react'
 import { Map } from '@/components/ui/map'
 import { CityWeather } from '@/components/wanzila/CityWeather'
 import { PharmacyDetails, type RouteState } from '@/components/wanzila/PharmacyDetails'
@@ -21,6 +21,19 @@ type SheetSize = 'peek' | 'full'
 type TileStyle = 'clean' | 'roadmap' | 'satellite'
 const STORAGE_KEY = 'wanzila:saved:v1'
 const DEFAULT_FILTERS: SearchFilters = { query: '', category: 'all', availability: 'all' }
+const NEARBY_LIMIT = 10
+
+function distanceBetween(origin: [number, number], pharmacy: Pharmacy) {
+  if (!hasCoordinates(pharmacy)) return Number.POSITIVE_INFINITY
+  const radians = (value: number) => value * Math.PI / 180
+  const earthRadius = 6_371_000
+  const latitudeDelta = radians(pharmacy.latitude - origin[0])
+  const longitudeDelta = radians(pharmacy.longitude - origin[1])
+  const startLatitude = radians(origin[0])
+  const endLatitude = radians(pharmacy.latitude)
+  const value = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(longitudeDelta / 2) ** 2
+  return earthRadius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
+}
 
 const tabs: { id: Tab; label: string; Icon: typeof MapPin }[] = [
   { id: 'map', label: 'Carte', Icon: MapPin },
@@ -28,11 +41,13 @@ const tabs: { id: Tab; label: string; Icon: typeof MapPin }[] = [
   { id: 'contribute', label: 'Contribuer', Icon: PlusCircle },
 ]
 
-function SearchControls({ filters, onChange, onReset, pharmacies, mobile = false }: {
+function SearchControls({ filters, onChange, onReset, pharmacies, nearbyActive = false, onDisableNearby, mobile = false }: {
   filters: SearchFilters
   onChange: (filters: SearchFilters) => void
   onReset: () => void
   pharmacies: Pharmacy[]
+  nearbyActive?: boolean
+  onDisableNearby?: () => void
   mobile?: boolean
 }) {
   const filterStripRef = useRef<HTMLDivElement>(null)
@@ -59,6 +74,7 @@ function SearchControls({ filters, onChange, onReset, pharmacies, mobile = false
       {mobile && <Image className="mobile-search__brand" src="/brand-app-icon.png" width={34} height={34} alt="Wanzila" priority />}
     </label>
     <div ref={filterStripRef} className={`filter-strip${mobile ? ` filter-strip--mobile${filterEdges.atStart ? ' is-at-start' : ''}${filterEdges.atEnd ? ' is-at-end' : ''}` : ''}`} aria-label="Filtres de recherche" onScroll={updateFilterEdges}>
+      {nearbyActive && <button className="filter-chip filter-chip--nearby is-active" onClick={onDisableNearby} aria-label="Désactiver le tri par proximité"><LocateFixed size={15} /><span>À proximité</span><X size={13} /></button>}
       {(filters.query || filters.category !== DEFAULT_FILTERS.category || filters.availability !== 'all' || filters.neighborhood || filters.borough) && <button className="filter-chip filter-chip--reset" onClick={onReset}><RotateCcw size={14} /> Réinitialiser</button>}
       <label className="filter-chip filter-chip--select"><SlidersHorizontal size={15} /><span className="sr-only">Type de pharmacie</span><select aria-label="Type de pharmacie" value={filters.category} onChange={event => onChange({ ...filters, category: event.target.value as SearchFilters['category'] })}><option value="all">Tous les types</option><option value="on_duty">De garde aujourd’hui</option><option value="night_pharmacy">De nuit</option><option value="pharmacy">Classiques</option></select></label>
       <label className="filter-chip filter-chip--select"><Clock3 size={15} /><span className="sr-only">Disponibilité</span><select aria-label="Disponibilité" value={filters.availability || 'all'} onChange={event => onChange({ ...filters, availability: event.target.value as SearchFilters['availability'] })}><option value="all">Tous les statuts</option><option value="open">Ouvertes</option><option value="closed">Fermées</option><option value="unknown">À confirmer</option></select></label>
@@ -121,13 +137,16 @@ export default function HomePage() {
   const [sheetDragHeight, setSheetDragHeight] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<string[]>([])
   const [storageReady, setStorageReady] = useState(false)
-  const [tileStyle, setTileStyle] = useState<TileStyle>('roadmap')
+  const [tileStyle, setTileStyle] = useState<TileStyle>('clean')
   const [tilePickerOpen, setTilePickerOpen] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [mapReset, setMapReset] = useState(0)
   const [restoreView, setRestoreView] = useState<{ center: [number, number]; zoom: number; key: number } | null>(null)
   const [route, setRoute] = useState<RouteInfo | null>(null)
   const [position, setPosition] = useState<[number, number] | null>(null)
+  const [nearbyPosition, setNearbyPosition] = useState<[number, number] | null>(null)
+  const [nearbyStatus, setNearbyStatus] = useState<'idle' | 'loading' | 'active' | 'error'>('idle')
+  const [nearbyError, setNearbyError] = useState<string | null>(null)
   const [routeState, setRouteState] = useState<RouteState>({ status: 'idle' })
   const [routeFocusMode, setRouteFocusMode] = useState(false)
   const requestRef = useRef(0)
@@ -189,8 +208,15 @@ export default function HomePage() {
   }, [route, routeState.status])
 
   const visible = useMemo(() => filterPharmacies(pharmacies, filters), [pharmacies, filters])
+  const nearbyDistances = useMemo(() => {
+    if (!nearbyPosition || nearbyStatus !== 'active') return new globalThis.Map<string, number>()
+    return new globalThis.Map(visible.filter(hasCoordinates).map(pharmacy => [pharmacy.id, distanceBetween(nearbyPosition, pharmacy)]))
+  }, [nearbyPosition, nearbyStatus, visible])
+  const displayed = useMemo(() => nearbyStatus === 'active'
+    ? [...visible].filter(hasCoordinates).sort((a, b) => (nearbyDistances.get(a.id) ?? Infinity) - (nearbyDistances.get(b.id) ?? Infinity)).slice(0, NEARBY_LIMIT)
+    : visible, [nearbyDistances, nearbyStatus, visible])
   const saved = useMemo(() => pharmacies.filter(pharmacy => savedIds.includes(pharmacy.id)), [pharmacies, savedIds])
-  const visiblePoints = useMemo(() => visible.filter(hasCoordinates), [visible])
+  const visiblePoints = useMemo(() => displayed.filter(hasCoordinates), [displayed])
   const mapPharmacies = useMemo(() => {
     if (selected && hasCoordinates(selected) && !visiblePoints.some(point => point.id === selected.id)) return [...visiblePoints, selected]
     return visiblePoints
@@ -248,8 +274,48 @@ export default function HomePage() {
     viewBeforeSelection.current = null
   }
 
+  const disableNearby = useCallback(() => {
+    setNearbyPosition(null)
+    setNearbyStatus('idle')
+    setNearbyError(null)
+    setRestoreView(null)
+    setMapReset(value => value + 1)
+  }, [])
+
+  const locateNearbyPharmacies = useCallback(async () => {
+    if (nearbyStatus === 'active' && nearbyPosition) {
+      setRestoreView(null)
+      setMapReset(value => value + 1)
+      return
+    }
+    setNearbyStatus('loading')
+    setNearbyError(null)
+    try {
+      if (!navigator.geolocation) throw new Error('La géolocalisation n’est pas disponible sur ce navigateur.')
+      const location = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 }))
+      const origin: [number, number] = [location.coords.latitude, location.coords.longitude]
+      clearRoute()
+      setSelected(null)
+      setTab('map')
+      setFilters(current => ({ ...current, neighborhood: undefined, borough: undefined }))
+      setNearbyPosition(origin)
+      setNearbyStatus('active')
+      setRestoreView(null)
+      setMapReset(value => value + 1)
+      trackEvent('nearby_pharmacies_enabled', { accuracy_meters: Math.round(location.coords.accuracy) })
+    } catch (error) {
+      const denied = typeof error === 'object' && error !== null && 'code' in error && error.code === 1
+      setNearbyStatus('error')
+      setNearbyError(denied ? 'Localisation refusée. Autorisez-la dans votre navigateur pour voir les pharmacies proches.' : error instanceof Error ? error.message : 'Votre position n’a pas pu être récupérée.')
+      trackEvent('nearby_pharmacies_failed', { reason: denied ? 'permission_denied' : 'location_unavailable' })
+    }
+  }, [clearRoute, nearbyPosition, nearbyStatus])
+
   const resetFilters = () => {
     clearRoute()
+    setNearbyPosition(null)
+    setNearbyStatus('idle')
+    setNearbyError(null)
     activeSearchId.current = null
     trackedSearch.current = ''
     setFilters(DEFAULT_FILTERS)
@@ -394,8 +460,8 @@ export default function HomePage() {
   const details = selected && <PharmacyDetails pharmacy={selected} saved={savedIds.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={closePharmacy} onRoute={() => startRoute(selected)} route={route} routeState={routeState} />
   const selectedSheet = selected && <PharmacyDetails pharmacy={selected} saved={savedIds.includes(selected.id)} onSave={() => toggleSaved(selected.id)} onClose={closePharmacy} onRoute={() => startRoute(selected)} route={route} routeState={routeState} compact={sheetSize === 'peek'} />
 
-  const list = tab === 'saved' ? saved : visible
-  const listTitle = tab === 'saved' ? 'Mes pharmacies enregistrées' : filters.category === 'on_duty' ? 'Pharmacies de garde aujourd’hui' : 'Pharmacies à Brazzaville'
+  const list = tab === 'saved' ? saved : displayed
+  const listTitle = tab === 'saved' ? 'Mes pharmacies enregistrées' : nearbyStatus === 'active' ? 'Pharmacies près de vous' : filters.category === 'on_duty' ? 'Pharmacies de garde aujourd’hui' : 'Pharmacies à Brazzaville'
   const sheetOpen = Boolean(selected) || tab !== 'map'
 
   return <div className={`wanzila-app${panelCollapsed ? ' is-panel-collapsed' : ''}`}>
@@ -410,15 +476,16 @@ export default function HomePage() {
     <aside id="desktop-pharmacy-panel" className="desktop-panel" aria-label={selected ? 'Fiche pharmacie' : listTitle} aria-hidden={panelCollapsed} inert={panelCollapsed ? true : undefined}>
       {selected && tab === 'map' ? <div className="desktop-panel__inner">{details}</div>
         : tab === 'contribute' ? <div className="desktop-panel__inner"><ContributeState /></div>
-          : <><div className="desktop-panel__head"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} /><div className="panel-heading"><div><h1>{listTitle}</h1>{loading ? <span className="skeleton-block panel-heading__skeleton" aria-hidden="true" /> : <p>{tab === 'saved' ? `${saved.length} pharmacie${saved.length > 1 ? 's' : ''} enregistrée${saved.length > 1 ? 's' : ''} sur cet appareil` : `${visible.length} pharmacie${visible.length > 1 ? 's' : ''} · ${visible.filter(hasCoordinates).length} sur la carte`}</p>}</div></div></div><div className="desktop-panel__list">{loading && <PharmacyListSkeleton />}{loadError && <DataErrorState message={loadError} onRetry={fetchPharmacyData} />}{!loading && !loadError && list.length === 0 && <EmptyState kind={tab === 'saved' ? 'saved' : 'search'} />}{!loading && !loadError && list.map(pharmacy => <PharmacyRow key={pharmacy.id} pharmacy={pharmacy} saved={savedIds.includes(pharmacy.id)} onOpen={() => openPharmacy(pharmacy)} onSave={() => toggleSaved(pharmacy.id)} onRoute={() => startRoute(pharmacy)} />)}</div></>}
+          : <><div className="desktop-panel__head"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} nearbyActive={nearbyStatus === 'active'} onDisableNearby={disableNearby} /><div className="panel-heading"><div><h1>{listTitle}</h1>{loading ? <span className="skeleton-block panel-heading__skeleton" aria-hidden="true" /> : <p>{tab === 'saved' ? `${saved.length} pharmacie${saved.length > 1 ? 's' : ''} enregistrée${saved.length > 1 ? 's' : ''} sur cet appareil` : nearbyStatus === 'active' ? `${displayed.length} pharmacie${displayed.length > 1 ? 's' : ''} les plus proche${displayed.length > 1 ? 's' : ''}` : `${visible.length} pharmacie${visible.length > 1 ? 's' : ''} · ${visible.filter(hasCoordinates).length} sur la carte`}</p>}</div></div></div><div className="desktop-panel__list">{loading && <PharmacyListSkeleton />}{loadError && <DataErrorState message={loadError} onRetry={fetchPharmacyData} />}{!loading && !loadError && list.length === 0 && <EmptyState kind={tab === 'saved' ? 'saved' : 'search'} />}{!loading && !loadError && list.map(pharmacy => <PharmacyRow key={pharmacy.id} pharmacy={pharmacy} distance={tab === 'map' ? nearbyDistances.get(pharmacy.id) : undefined} saved={savedIds.includes(pharmacy.id)} onOpen={() => openPharmacy(pharmacy)} onSave={() => toggleSaved(pharmacy.id)} onRoute={() => startRoute(pharmacy)} />)}</div></>}
     </aside>
 
     <main className="map-stage" aria-label="Carte des pharmacies de Brazzaville">
-      {loading ? <MapSkeleton className="map-stage__map" /> : <Map pharmacies={mapPharmacies} route={route} userPosition={position} focusPharmacy={selected} tileStyle={tileStyle} layoutKey={panelCollapsed} resetKey={mapReset} restoreView={restoreView} onViewportChange={trackViewport} onMarkerClick={openPharmacy} height="100%" className="map-stage__map" />}
+      {loading ? <MapSkeleton className="map-stage__map" /> : <Map pharmacies={mapPharmacies} route={route} userPosition={position ?? nearbyPosition} focusPharmacy={selected} tileStyle={tileStyle} layoutKey={panelCollapsed} resetKey={mapReset} restoreView={restoreView} onViewportChange={trackViewport} onMarkerClick={openPharmacy} height="100%" className="map-stage__map" />}
       {loadError && <div className="mobile-data-error"><DataErrorState message={loadError} onRetry={fetchPharmacyData} /></div>}
-      <div className="mobile-search"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} mobile />{filters.query.trim() && !selected && tab === 'map' && <div className="mobile-search-results"><strong>{visible.length} résultat{visible.length > 1 ? 's' : ''}</strong>{visible.slice(0, 5).map(pharmacy => <button key={pharmacy.id} onClick={() => openPharmacy(pharmacy)}>{pharmacy.name}<span>{pharmacy.neighborhood || pharmacy.borough || 'Brazzaville'}</span></button>)}{visible.length === 0 && <p>Aucune pharmacie trouvée.</p>}</div>}</div>
+      <div className="mobile-search"><SearchControls filters={filters} onChange={changeFilters} onReset={resetFilters} pharmacies={pharmacies} nearbyActive={nearbyStatus === 'active'} onDisableNearby={disableNearby} mobile />{filters.query.trim() && !selected && tab === 'map' && <div className="mobile-search-results"><strong>{displayed.length} résultat{displayed.length > 1 ? 's' : ''}</strong>{displayed.slice(0, 5).map(pharmacy => <button key={pharmacy.id} onClick={() => openPharmacy(pharmacy)}>{pharmacy.name}<span>{pharmacy.neighborhood || pharmacy.borough || 'Brazzaville'}</span></button>)}{displayed.length === 0 && <p>Aucune pharmacie trouvée.</p>}</div>}</div>
       <CityWeather />
-      <div className={`map-tools${selected && sheetSize === 'peek' && !routeFocusMode ? ' has-detail' : ''}${sheetOpen && !routeFocusMode && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button aria-label="Recentrer la carte" title="Recentrer la carte" onClick={() => { clearRoute(); setSelected(null); setRestoreView(null); setMapReset(value => value + 1) }}><RotateCcw size={21} /></button><button aria-label="Choisir le fond de carte" title="Choisir le fond de carte" onClick={() => setTilePickerOpen(true)}><Layers2 size={21} /></button></div>
+      <div className={`map-tools${selected && sheetSize === 'peek' && !routeFocusMode ? ' has-detail' : ''}${sheetOpen && !routeFocusMode && (!selected || sheetSize === 'full') ? ' is-obscured' : ''}`}><a className="map-tools__emergency" href={EMERGENCY_CONTACT.href} onClick={() => trackEvent('emergency_call_started')} aria-label={`Appeler les urgences médicales au ${EMERGENCY_CONTACT.number}`} title={`${EMERGENCY_CONTACT.label} · ${EMERGENCY_CONTACT.number}`}><Siren size={21} /></a><button className={`${nearbyStatus === 'active' ? 'is-active' : ''}${nearbyStatus === 'loading' ? ' is-loading' : ''}`} aria-label={nearbyStatus === 'active' ? 'Recentrer sur les pharmacies proches' : 'Afficher les pharmacies proches'} title={nearbyStatus === 'active' ? 'Recentrer sur votre position' : 'Pharmacies à proximité'} onClick={locateNearbyPharmacies} disabled={nearbyStatus === 'loading'} aria-pressed={nearbyStatus === 'active'}>{nearbyStatus === 'loading' ? <LoaderCircle size={21} /> : <LocateFixed size={21} />}</button><button aria-label="Choisir le fond de carte" title="Choisir le fond de carte" onClick={() => setTilePickerOpen(true)}><Layers2 size={21} /></button></div>
+      {nearbyError && <p className="nearby-message" role="alert">{nearbyError}</p>}
 
       {tilePickerOpen && <TilePicker value={tileStyle} onChange={setTileStyle} onClose={() => setTilePickerOpen(false)} />}
 
