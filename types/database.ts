@@ -34,7 +34,8 @@ export interface Pharmacy {
 
 export interface SearchFilters {
   query: string
-  category: 'all' | PharmacyCategory | 'on_duty'
+  category: 'all' | PharmacyCategory
+  duty?: 'all' | 'on_duty'
   availability?: 'all' | 'open' | 'closed' | 'unknown'
   neighborhood?: string
   borough?: string

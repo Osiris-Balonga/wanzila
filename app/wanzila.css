@@ -104,10 +104,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pharmacy-row__text small { display:flex; align-items:center; gap:4px; overflow:hidden; color:var(--muted); white-space:nowrap; text-overflow:ellipsis; font-size:11px; }
 .pharmacy-row__text small svg { flex:none; }
 .pharmacy-row__distance { color:var(--purple-dark); font-weight:750; font-variant-numeric:tabular-nums; }
+.pharmacy-row__text .pharmacy-row__map-status { color:#a04a24; }
 .status-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
 .availability-badge { display:inline-flex; width:max-content; max-width:100%; align-items:center; padding:4px 7px; border-radius:10px; color:#596782; background:#f1f2f6; font-size:10px; line-height:1.25; font-weight:700; }
 .availability-badge--open { color:#087b5a; background:#dff8eb; }
 .availability-badge--closed { color:#667084; background:#eceef3; }
+.availability-badge--unknown { color:#596782; background:#f1f2f6; }
 .availability-badge--duty { color:#087b5a; background:#dff8eb; }
 .pharmacy-row.is-closed .pharmacy-row__visual { filter:grayscale(1); opacity:.63; }
 .pharmacy-row__actions { display:flex; gap:5px; margin-top:9px; }
@@ -157,6 +159,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .map-tools button.is-active:hover { background:var(--purple-dark); }
 .map-tools button.is-loading svg { animation:nearby-spin .8s linear infinite; }
 .nearby-message { position:absolute; z-index:650; right:78px; bottom:31px; max-width:290px; margin:0; padding:11px 14px; border-radius:12px; color:#8f2137; background:#fff; box-shadow:0 5px 22px #21183c2b; font-size:11px; font-weight:650; line-height:1.4; }
+.nearby-message--info { color:var(--ink); }
 @keyframes nearby-spin { to { transform:rotate(360deg); } }
 .tile-picker-backdrop { position:absolute; z-index:1250; inset:0; background:transparent; }
 .tile-picker { position:absolute; right:78px; bottom:24px; width:min(380px,calc(100% - 36px)); padding:17px; border-radius:16px; background:#fff; box-shadow:0 8px 26px #19153538; }
@@ -172,9 +175,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tile-picker__options strong { max-width:100%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:11px; }
 .tile-picker__options small { color:var(--muted); font-size:9px; }
 .wanzila-pin { border:0; background:transparent; transition:opacity .18s,transform .18s; }
-.map-pin__body { position:absolute; left:3px; top:2px; width:22px; height:22px; display:grid; place-items:center; border:2px solid #fff; border-radius:50% 50% 50% 5px; color:#fff; background:var(--purple); box-shadow:0 1px 3px #17213b38; transform:rotate(-45deg); transform-origin:50% 50%; }
+.map-pin__body { position:absolute; left:3px; top:2px; width:22px; height:22px; display:grid; place-items:center; border:2px solid #fff; border-radius:50% 50% 50% 5px; color:#fff; background:#0a9f70; box-shadow:0 1px 3px #17213b38; transform:rotate(-45deg); transform-origin:50% 50%; }
 .map-pin__cross { display:block; transform:rotate(45deg); font-size:16px; line-height:1; font-weight:850; }
-.wanzila-pin.is-on-duty .map-pin__body { background:#0a9f70; }
+.wanzila-pin.is-on-duty .map-pin__body { background:var(--purple); }
 .wanzila-pin.is-selected { z-index:650!important; transform:scale(1.12); }
 .wanzila-pin.is-selected .map-pin__body { box-shadow:0 2px 4px #17213b4a,0 0 0 2px #ffffffc7; }
 .wanzila-pin.is-closed { opacity:.66; }
@@ -203,6 +206,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .map-preview-card__body > small { width:max-content; margin-top:3px; padding:3px 6px; border-radius:8px; font-size:9px; font-weight:750; }
 .map-preview-card__body > small.is-open { color:#087b5a; background:#dff8eb; }
 .map-preview-card__body > small.is-closed { color:#667084; background:#eceef3; }
+.map-preview-card__body > small.is-unknown { color:#596782; background:#f1f2f6; }
 .wanzila-user-location { border:0; background:transparent; }
 .wanzila-user-location__pulse { position:absolute; top:10px; left:10px; width:24px; height:24px; border-radius:50%; background:#1686ed75; animation:user-location-pulse 2.4s ease-out infinite; }
 .wanzila-user-location__dot { position:absolute; top:13px; left:13px; width:18px; height:18px; border:3px solid #fff; border-radius:50%; background:#1686ed; box-shadow:0 2px 7px #1f4f8a88; }

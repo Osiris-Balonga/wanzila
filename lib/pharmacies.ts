@@ -36,13 +36,14 @@ export function getAvailability(pharmacy: Pharmacy, at = new Date()): 'open' | '
 }
 
 export function filterPharmacies(pharmacies: Pharmacy[], filters: SearchFilters): Pharmacy[] {
-  const query = filters.query.trim().toLocaleLowerCase('fr')
+  const normalize = (value: string) => value.toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const query = normalize(filters.query.trim())
   return pharmacies.filter(pharmacy => {
     const matchesQuery = !query || [pharmacy.name, pharmacy.full_address, pharmacy.city, pharmacy.neighborhood, pharmacy.borough]
-      .some(value => value?.toLocaleLowerCase('fr').includes(query))
-    const matchesCategory = filters.category === 'all'
-      || (filters.category === 'on_duty' ? isOnDuty(pharmacy) : pharmacy.category === filters.category)
+      .some(value => value && normalize(value).includes(query))
+    const matchesCategory = filters.category === 'all' || pharmacy.category === filters.category
     return matchesQuery && matchesCategory
+      && (!filters.duty || filters.duty === 'all' || isOnDuty(pharmacy))
       && (!filters.availability || filters.availability === 'all' || getAvailability(pharmacy) === filters.availability)
       && (!filters.neighborhood || pharmacy.neighborhood === filters.neighborhood)
       && (!filters.borough || pharmacy.borough === filters.borough)
