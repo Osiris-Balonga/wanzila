@@ -10,7 +10,7 @@ import type { MapProps } from './map'
 
 const marker = (pharmacy: MapProps['pharmacies'][number], selected: boolean) => L.divIcon({
   html: '<span class="map-pin__body"><span class="map-pin__cross" aria-hidden="true">+</span></span>',
-  className: `wanzila-pin${selected ? ' is-selected' : ''}${pharmacy.duty_status === 'confirmed' ? ' is-on-duty' : ''}${getAvailability(pharmacy) === 'closed' ? ' is-closed' : ''}`,
+  className: `wanzila-pin${selected ? ' is-selected' : ''}${isOnDuty(pharmacy) ? ' is-on-duty' : ''}${getAvailability(pharmacy) === 'closed' ? ' is-closed' : ''}`,
   iconSize: [28, 34], iconAnchor: [14, 33],
 })
 const userIcon = L.divIcon({
@@ -37,6 +37,7 @@ function MapCamera({ route, pharmacies, userPosition, resetKey, restoreView, lay
     } else {
       const points = pharmacies.filter(hasCoordinates)
       if (userPosition && points.length) map.fitBounds(L.latLngBounds([userPosition, ...points.map(p => [p.latitude, p.longitude] as [number, number])]), { padding: [48, 48], maxZoom: 15 })
+      else if (userPosition) map.flyTo(userPosition, 14, { duration: 0.35 })
       else if (map.getSize().x < 720 && points.length > 5) map.setView([-4.263, 15.268], 13, { animate: false })
       else if (points.length) map.fitBounds(L.latLngBounds(points.map(p => [p.latitude, p.longitude])), { padding: [48, 48], maxZoom: 14 })
     }
@@ -53,7 +54,7 @@ function PharmacyMapPreview({ pharmacy }: { pharmacy: MapProps['pharmacies'][num
   const availability = getAvailability(pharmacy)
   const status = isOnDuty(pharmacy)
     ? 'Ouverte · de garde aujourd’hui'
-    : availability === 'open' ? 'Ouverte maintenant' : availability === 'closed' ? 'Fermée' : null
+    : availability === 'open' ? 'Ouverte maintenant' : availability === 'closed' ? 'Fermée' : 'Horaires inconnus'
   return <div className="map-preview-card">
     <div className="map-preview-card__media">
       {pharmacy.photo_url ? <img src={pharmacy.photo_url} alt="" onError={event => { event.currentTarget.hidden = true; event.currentTarget.nextElementSibling?.classList.add('is-visible') }} /> : null}
@@ -62,7 +63,7 @@ function PharmacyMapPreview({ pharmacy }: { pharmacy: MapProps['pharmacies'][num
     <div className="map-preview-card__body">
       <strong>{pharmacy.name}</strong>
       <span>{pharmacy.neighborhood || pharmacy.borough || 'Brazzaville'}</span>
-      {status ? <small className={availability === 'closed' ? 'is-closed' : 'is-open'}>{status}</small> : null}
+      <small className={availability === 'closed' ? 'is-closed' : availability === 'unknown' ? 'is-unknown' : 'is-open'}>{status}</small>
     </div>
   </div>
 }
